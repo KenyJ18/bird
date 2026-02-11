@@ -1,0 +1,26 @@
+{
+  "name": "bird",
+  "version": "1.0.0",
+  "description": "現在の家賃相場を集計、地図に表示するアプリ",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KenyJ18/bird.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KenyJ18/bird/issues"
+  },
+  "homepage": "https://github.com/KenyJ18/bird#readme",
+  "dependencies": {
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "storybook": "^10.2.8"
+  }
+}
