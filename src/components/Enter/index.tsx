@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { Stack, TextField, Button } from '@mui/material';
 
 const Enter = () => {
@@ -14,3 +13,5 @@ const Enter = () => {
         </div>
     );
 };
+
+export default Enter;

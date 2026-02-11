@@ -4,7 +4,16 @@
   "description": "現在の家賃相場を集計、地図に表示するアプリ",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:reset": "docker-compose down -v && docker-compose up -d",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v --rmi all"
   },
   "repository": {
     "type": "git",
@@ -27,5 +36,10 @@
     "next": "^16.1.6",
     "react": "^19.2.4",
     "storybook": "^10.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.13",
+    "typescript": "^5.9.3"
   }
 }
