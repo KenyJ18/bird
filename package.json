@@ -19,6 +19,11 @@
   },
   "homepage": "https://github.com/KenyJ18/bird#readme",
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.7",
+    "docker": "^1.0.0",
+    "mui": "^0.0.1",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "storybook": "^10.2.8"
