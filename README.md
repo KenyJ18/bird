@@ -1,147 +1,147 @@
 # bird
-現在の家賃相場を集計、地図に表示するアプリ
 
-## 必要な環境
-- Docker
-- Docker Compose
-
-## プロジェクト構成
-```
-bird/
-├── src/
-│   ├── components/    # Reactコンポーネント
-│   ├── pages/         # Next.jsページ
-│   └── view/          # ビューファイル
-├── Dockerfile         # Dockerイメージ定義
-├── docker-compose.yml # Docker Compose設定
-├── next.config.js     # Next.js設定
-└── package.json       # 依存関係管理
-```
-
-## Dockerを使用した開発
-
-### 初回セットアップ
-1. リポジトリをクローン
-```bash
-git clone https://github.com/KenyJ18/bird.git
-cd bird
-```
-
-2. Dockerコンテナーを起動
-```bash
-npm run docker:up
-```
-
-初回起動時は依存関係のインストールとビルドに時間がかかります。
-
-### サーバー起動コマンド
-
-#### Dockerコンテナーを起動（バックグラウンド）
-```bash
-npm run docker:up
-```
-または
-```bash
-docker-compose up -d
-```
-
-起動後、ブラウザで http://localhost:3000 にアクセスしてください。
-
-#### ログを確認
-```bash
-npm run docker:logs
-```
-または
-```bash
-docker-compose logs -f
-```
-
-### リセットコマンド
-
-#### コンテナーとボリュームを削除して再起動
-```bash
-npm run docker:reset
-```
-または
-```bash
-docker-compose down -v && docker-compose up -d
-```
-
-このコマンドは以下を実行します:
-- 既存のコンテナーを停止・削除
-- ボリューム（node_modulesなど）を削除
-- コンテナーを再ビルド・起動
-
-### 削除コマンド
-
-#### コンテナーを停止
-```bash
-npm run docker:down
-```
-または
-```bash
-docker-compose down
-```
-
-#### 完全削除（コンテナー、ボリューム、イメージをすべて削除）
-```bash
-npm run docker:clean
-```
-または
-```bash
-docker-compose down -v --rmi all
-```
-
-## ローカル開発（Dockerを使用しない場合）
-
-### セットアップ
-```bash
-npm install
-```
-
-### 開発サーバー起動
-```bash
-npm run dev
-```
-
-### 本番ビルド
-```bash
-npm run build
-npm start
-```
+Web アプリケーション開発プロジェクト
 
 ## 技術スタック
-- **フレームワーク**: Next.js 16
-- **言語**: TypeScript, React 19
-- **UIライブラリ**: Material-UI (MUI)
-- **コンテナ**: Docker, Docker Compose
 
-## トラブルシューティング
+| レイヤー | 技術 |
+|---------|------|
+| バックエンド（メイン） | CakePHP / PHP 8.3 / Apache |
+| フロントエンド（一部機能） | Next.js / React / TypeScript / Material UI / Jotai |
+| データベース | PostgreSQL 16 |
+| 開発環境 | Docker Compose |
 
-### ポート3000が既に使用されている
-別のアプリケーションがポート3000を使用している場合、`docker-compose.yml`のポート設定を変更してください:
-```yaml
-ports:
-  - "3001:3000"  # 3001など別のポートに変更
-```
+## 前提条件
 
-### ホットリロードが動作しない
-Dockerコンテナー内でファイル変更が検知されない場合、`docker-compose.yml`の環境変数が正しく設定されているか確認してください:
-```yaml
-environment:
-  - WATCHPACK_POLLING=true
-```
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) がインストール・起動済みであること
+- ポート `8080`, `3000`, `5432` が空いていること
 
-### コンテナーが起動しない
-以下のコマンドでログを確認してください:
+## 初回セットアップ
+
 ```bash
-docker-compose logs
+# 1. プロジェクトルートに移動
+cd /Users/kenyj/bird
+
+# 2. 環境変数ファイルを作成（必要に応じて編集）
+cp .env.example .env
+
+# 3. CakePHP プロジェクトを初期化
+docker compose build app
+docker compose run --rm app composer create-project --prefer-dist cakephp/app .
+
+# 4. Next.js プロジェクトを初期化
+docker compose build frontend
+docker compose run --rm frontend npx create-next-app@latest . --typescript --use-npm
+
+# 5. フロントエンド追加パッケージをインストール
+docker compose run --rm frontend npm install \
+  @mui/material @emotion/react @emotion/styled \
+  jotai
+
+# 6. 全コンテナを起動
+docker compose up -d
 ```
 
-依存関係のエラーが表示される場合は、リセットコマンドを実行してください:
+## 開発環境サーバーの操作コマンド
+
+### 起動
+
 ```bash
-npm run docker:reset
+docker compose up -d
 ```
 
-## ライセンス
-ISC
+全サービス（CakePHP / Next.js / PostgreSQL）をバックグラウンドで起動します。
+
+### 再起動
+
+```bash
+docker compose restart
+```
+
+全サービスを再起動します。特定のサービスのみ再起動する場合：
+
+```bash
+docker compose restart app        # CakePHP のみ再起動
+docker compose restart frontend   # Next.js のみ再起動
+docker compose restart db         # PostgreSQL のみ再起動
+```
+
+### 停止
+
+```bash
+docker compose down
+```
+
+全サービスを停止し、コンテナを削除します。データベースのデータは保持されます。
+
+> **注意**: データベースのデータも含めて完全に初期化したい場合は以下を実行してください。
+>
+> ```bash
+> docker compose down -v
+> ```
+
+## アクセスURL
+
+| サービス | URL |
+|---------|-----|
+| CakePHP（バックエンド） | http://localhost:8080 |
+| Next.js（フロントエンド） | http://localhost:3000 |
+| PostgreSQL | `localhost:5432` |
+
+## よく使うコマンド
+
+### ログ確認
+
+```bash
+docker compose logs -f            # 全サービスのログ
+docker compose logs -f app        # CakePHP のログのみ
+docker compose logs -f frontend   # Next.js のログのみ
+docker compose logs -f db         # PostgreSQL のログのみ
+```
+
+### コンテナに入る
+
+```bash
+docker compose exec app bash           # CakePHP コンテナ
+docker compose exec frontend sh        # Next.js コンテナ
+docker compose exec db psql -U bird_user -d bird   # PostgreSQL
+```
+
+### パッケージ管理
+
+```bash
+# PHP (Composer)
+docker compose exec app composer install
+docker compose exec app composer require <パッケージ名>
+
+# Node.js (npm)
+docker compose exec frontend npm install
+docker compose exec frontend npm install <パッケージ名>
+```
+
+### CakePHP マイグレーション
+
+```bash
+docker compose exec app bin/cake migrations migrate        # マイグレーション実行
+docker compose exec app bin/cake migrations rollback       # ロールバック
+docker compose exec app bin/cake bake migration <名前>     # マイグレーション作成
+```
+
+## ディレクトリ構成
+
+```
+bird/
+├── docker-compose.yml
+├── .env / .env.example
+├── .gitignore
+├── README.md
+├── docker/
+│   ├── php/
+│   │   ├── Dockerfile
+│   │   ├── php.ini
+│   │   └── 000-default.conf
+│   └── node/
+│       └── Dockerfile
+├── backend/          ← CakePHP アプリケーション
+└── frontend/         ← Next.js アプリケーション
+```

@@ -9,11 +9,12 @@
     "start": "next start",
     "lint": "next lint",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:reset": "docker-compose down -v && docker-compose up -d",
-    "docker:logs": "docker-compose logs -f",
-    "docker:clean": "docker-compose down -v --rmi all"
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "docker:logs": "docker compose logs -f",
+    "docker:clean": "docker compose down -v --rmi all",
+    "docker:check": "docker --version && docker compose version"
   },
   "repository": {
     "type": "git",

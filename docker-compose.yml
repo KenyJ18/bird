@@ -1,20 +1,66 @@
-version: '3.8'
-
 services:
+  # ---- CakePHP (メイン バックエンド) ----
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/php/Dockerfile
     container_name: bird-app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - bird-network
+
+  # ---- Next.js (フロントエンド / 一部機能) ----
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/node/Dockerfile
+    container_name: bird-frontend
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      - ./frontend:/app
       - /app/node_modules
-      - /app/.next
     environment:
-      - NODE_ENV=development
-      - WATCHPACK_POLLING=true
-    command: npm run dev
-    stdin_open: true
-    tty: true
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    networks:
+      - bird-network
+
+  # ---- PostgreSQL ----
+  db:
+    image: postgres:16-alpine
+    container_name: bird-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bird-network
+
+volumes:
+  db-data:
+
+networks:
+  bird-network:
+    driver: bridge
