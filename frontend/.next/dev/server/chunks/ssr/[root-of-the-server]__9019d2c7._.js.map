@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///app/src/components/Enter/index.tsx"],"sourcesContent":["import React from 'react';\nimport { Stack, TextField, Button } from '@mui/material';\n\nconst Enter = () => {\n    return (\n        <div>\n            <h1>予算入力画面</h1>\n            <Stack direction=\"column\" spacing={2}>\n                <TextField label=\"予算\" variant=\"outlined\" fullWidth />\n                <Button variant=\"contained\" color=\"primary\">次へ</Button>\n                <Button variant=\"contained\" color=\"secondary\">キャンセル</Button>\n            </Stack>\n        </div>\n    );\n};\n\nexport default Enter;\n"],"names":[],"mappings":";;;;;AACA;AAAA;AAAA;;;AAEA,MAAM,QAAQ;IACV,qBACI,qKAAC;;0BACG,qKAAC;0BAAG;;;;;;0BACJ,qKAAC,gMAAK;gBAAC,WAAU;gBAAS,SAAS;;kCAC/B,qKAAC,gNAAS;wBAAC,OAAM;wBAAK,SAAQ;wBAAW,SAAS;;;;;;kCAClD,qKAAC,oMAAM;wBAAC,SAAQ;wBAAY,OAAM;kCAAU;;;;;;kCAC5C,qKAAC,oMAAM;wBAAC,SAAQ;wBAAY,OAAM;kCAAY;;;;;;;;;;;;;;;;;;AAI9D;uCAEe"}},
+    {"offset": {"line": 79, "column": 0}, "map": {"version":3,"sources":["file:///app/src/pages/index.tsx"],"sourcesContent":["import React from 'react';\nimport Enter from '../components/Enter';\n\nexport default function Home() {\n  return (\n    <div>\n      <Enter />\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;AACA;;;AAEe,SAAS;IACtB,qBACE,qKAAC;kBACC,cAAA,qKAAC,wIAAK;;;;;;;;;;AAGZ"}}]
+}
