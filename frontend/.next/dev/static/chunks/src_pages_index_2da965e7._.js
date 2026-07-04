@@ -5,10 +5,11 @@
   "static/chunks/node_modules_next_dist_shared_lib_8bac8163._.js",
   "static/chunks/node_modules_next_dist_client_5a8a528e._.js",
   "static/chunks/node_modules_next_dist_41ce5ee3._.js",
+  "static/chunks/node_modules_next_router_104fab1c.js",
   "static/chunks/node_modules_react-dom_4411d9bd._.js",
-  "static/chunks/node_modules_@mui_system_esm_91d50686._.js",
-  "static/chunks/node_modules_@mui_material_esm_2530dc77._.js",
-  "static/chunks/node_modules_99a314b1._.js",
+  "static/chunks/node_modules_@mui_system_esm_e074c82a._.js",
+  "static/chunks/node_modules_@mui_material_esm_b13ac9d1._.js",
+  "static/chunks/node_modules_12752567._.js",
   "static/chunks/[root-of-the-server]__8ce61d74._.js"
 ],
     source: "entry"
