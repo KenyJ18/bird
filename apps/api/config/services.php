@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'reinfolib' => [
+        'api_key' => env('REINFOLIB_API_KEY'),
+    ],
+
 ];
