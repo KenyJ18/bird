@@ -1,62 +1,44 @@
-import React, { useState } from 'react';
 import { Stack, TextField, Button, Grid } from '@mui/material';
 import { useRouter } from 'next/router';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 
-interface EnterProps {
-    initialBudget?: number;
-}
-
-export const Enter: React.FC<EnterProps> = ({ initialBudget }) => {
-    const [budget, setBudget] = useState<string>(initialBudget?.toString() || '');
+export const Enter: React.FC = () => {
+    const { register, handleSubmit, formState: { errors } } = useForm();
     const router = useRouter();
 
-    const handleNext = () => {
-        const budgetValue = parseFloat(budget);
-        if (!isNaN(budgetValue) && budgetValue > 0) {
-            // 予算確認画面に遷移（budgetをクエリパラメータとして渡す）
-            router.push({
-                pathname: '/enter-check',
-                query: { budget: budgetValue }
-            });
-        } else {
-            alert('有効な予算を入力してください');
-        }
+    const onSubmit = (data: any) => {
+        console.log('Submitted data:', data);
+        router.push('/enter-check');
     };
 
     const handleCancel = () => {
-        setBudget('');
+        router.back();
     };
 
     return (
-        <div>
+        <form onSubmit={handleSubmit(onSubmit)}>
             <h1>予算入力画面</h1>
-            <Stack direction="column" spacing={2}>
-                <Grid container spacing={2}>
-                    <Grid item xs={12}>
+            <div>
+                <Stack direction="column" gap={2}>
+                    <Grid container spacing={2}>
                         <TextField
                             label="予算" 
                             variant="outlined" 
-                            fullWidth 
-                            value={budget} 
-                            onChange={(e) => setBudget(e.target.value)}
+                            fullWidth
+                            {...register("budget", { required: true })}
                             type="number"
+                            error={!!errors.budget}
+                            helperText={errors.budget ? "予算は必須です" : ""}
                         />
                     </Grid>
-                </Grid>
-                <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                        <Button variant="contained" color="primary" onClick={handleNext} fullWidth>
-                            次へ
-                        </Button>
+                    <Grid container spacing={2}>
+                        <Button variant="contained" color="primary" type="submit" fullWidth>次へ</Button>
+                        <Button variant="contained" color="secondary" onClick={handleCancel} fullWidth>キャンセル</Button>
                     </Grid>
-                    <Grid item xs={6}>
-                        <Button variant="contained" color="secondary" onClick={handleCancel} fullWidth>
-                            キャンセル
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Stack>
-        </div>
+                </Stack>
+            </div>
+        </form>
     );
 };
 
