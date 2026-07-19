@@ -2,14 +2,6 @@ import React from 'react';
 import { Stack, TextField, Button, Grid } from '@mui/material';
 import { useRouter } from 'next/router';
 
-export default function EnterCheckPage() {
-    return (
-        <div>
-            <EnterCheck />
-        </div>
-    );
-}
-
 export const EnterCheck: React.FC = () => {
     const router = useRouter();
     const { budget } = router.query;
@@ -76,3 +68,5 @@ export const EnterCheck: React.FC = () => {
         </form>
     );
 }
+
+export default EnterCheck;

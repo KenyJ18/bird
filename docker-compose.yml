@@ -1,44 +1,116 @@
+version: '3.9'
+
 services:
-  # ---- CakePHP (メイン バックエンド) ----
-  app:
+  # ==============================================
+  # Laravel API (Backend)
+  # ==============================================
+  api:
     build:
-      context: .
-      dockerfile: docker/php/Dockerfile
-    container_name: bird-app
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: bird-api
     ports:
-      - "8080:80"
+      - "8080:8080"
     volumes:
-      - ./backend:/var/www/html
-      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+      - ./apps/api:/var/www/html
+      - api-vendor:/var/www/html/vendor
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=local
+      - DB_HOST=db
+      - REDIS_HOST=redis
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
+      redis:
+        condition: service_healthy
     networks:
       - bird-network
+    command: php artisan octane:start --server=swoole --host=0.0.0.0 --port=8080 --watch
 
-  # ---- Next.js (フロントエンド / 一部機能) ----
-  frontend:
+  # ==============================================
+  # Queue Worker (Laravel)
+  # ==============================================
+  queue:
     build:
-      context: .
-      dockerfile: docker/node/Dockerfile
-    container_name: bird-frontend
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: bird-queue
+    volumes:
+      - ./apps/api:/var/www/html
+      - api-vendor:/var/www/html/vendor
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=local
+      - DB_HOST=db
+      - REDIS_HOST=redis
+    depends_on:
+      - api
+      - redis
+    networks:
+      - bird-network
+    command: php artisan queue:work --tries=3 --timeout=300
+
+  # ==============================================
+  # Scheduler (Laravel Cron)
+  # ==============================================
+  scheduler:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: bird-scheduler
+    volumes:
+      - ./apps/api:/var/www/html
+      - api-vendor:/var/www/html/vendor
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=local
+      - DB_HOST=db
+      - REDIS_HOST=redis
+    depends_on:
+      - api
+    networks:
+      - bird-network
+    command: >
+      sh -c "while true; do
+        php artisan schedule:run --verbose --no-interaction &
+        sleep 60
+      done"
+
+  # ==============================================
+  # Next.js (Frontend)
+  # ==============================================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: bird-web
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+      - /app/.next
+    env_file:
+      - .env
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+    depends_on:
+      - api
     networks:
       - bird-network
+    command: pnpm dev
 
-  # ---- PostgreSQL ----
+  # ==============================================
+  # PostgreSQL 16
+  # ==============================================
   db:
     image: postgres:16-alpine
     container_name: bird-db
@@ -46,20 +118,80 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./apps/api/database/init:/docker-entrypoint-initdb.d
+    env_file:
+      - .env
     environment:
       - POSTGRES_DB=${DB_DATABASE}
       - POSTGRES_USER=${DB_USERNAME}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - bird-network
 
+  # ==============================================
+  # Redis (Queue & Cache)
+  # ==============================================
+  redis:
+    image: redis:7-alpine
+    container_name: bird-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - bird-network
+    command: redis-server --appendonly yes
+
+  # ==============================================
+  # Redis Commander (Development Tool)
+  # ==============================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: bird-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    networks:
+      - bird-network
+    profiles:
+      - dev-tools
+
+  # ==============================================
+  # Mailhog (Email Testing)
+  # ==============================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: bird-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - bird-network
+    profiles:
+      - dev-tools
+
 volumes:
   db-data:
+    driver: local
+  redis-data:
+    driver: local
+  api-vendor:
+    driver: local
+  web-node-modules:
+    driver: local
 
 networks:
   bird-network:
