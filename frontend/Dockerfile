@@ -20,8 +20,11 @@ COPY package.json pnpm-lock.yaml* ./
 # ==============================================
 FROM base AS deps
 
-# Install dependencies
-RUN pnpm install --no-frozen-lockfile
+# Install dependencies with timeout settings
+RUN pnpm config set network-timeout 600000 && \
+    pnpm config set fetch-retry-maxtimeout 600000 && \
+    pnpm config set fetch-retry-mintimeout 10000 && \
+    pnpm install --no-frozen-lockfile
 
 # ==============================================
 # Stage 3: Development
