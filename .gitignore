@@ -70,3 +70,13 @@ docker/data/
 # Logs
 *.log
 logs/
+
+# ConoHa WING 配置情報（機密）
+CONOHA_WING_INFO.md
+
+# 本番環境設定（機密情報含む）
+.env.shared-hosting
+
+# Next.js 開発環境の一時ファイル
+frontend/.next/dev/
+prerender-manifest.json

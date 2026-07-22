@@ -30,7 +30,7 @@ export const EnterCheck: React.FC = () => {
                 <div>
                     <Stack direction="column" spacing={2}>
                         <Grid container spacing={2}>
-                            <Grid item xs={12}>
+                            <Grid size={6}>
                                 <TextField 
                                     label="入力した予算" 
                                     variant="outlined" 
@@ -41,7 +41,7 @@ export const EnterCheck: React.FC = () => {
                             </Grid>
                         </Grid>
                         <Grid container spacing={2}>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Button 
                                     variant="contained" 
                                     color="primary" 
@@ -51,7 +51,7 @@ export const EnterCheck: React.FC = () => {
                                     次へ
                                 </Button>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Button 
                                     variant="contained" 
                                     color="secondary" 

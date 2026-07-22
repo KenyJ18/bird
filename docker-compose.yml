@@ -88,14 +88,14 @@ services:
   # ==============================================
   web:
     build:
-      context: ./apps/web
+      context: ./frontend
       dockerfile: Dockerfile
       target: development
     container_name: bird-web
     ports:
       - "3000:3000"
     volumes:
-      - ./apps/web:/app
+      - ./frontend:/app
       - web-node-modules:/app/node_modules
       - /app/.next
     env_file:
