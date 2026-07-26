@@ -348,6 +348,31 @@ docker-compose exec api rm -rf vendor
 docker-compose exec api composer install
 ```
 
+### Cron ジョブ確認
+```bash
+# 1️⃣ 最も重要: Cron ジョブ一覧表示
+ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -l"
+
+# 2️⃣ Cron ジョブの詳細確認
+ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -l | grep bird"
+
+# 3️⃣ Cron ジョブを削除（必要な場合）
+ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -r"
+
+# 4️⃣ 新しい Cron ジョブを追加（必要な場合）
+ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -e"
+```
+
+**現在の Cron ジョブ設定**:
+```
+0 0 1 * * cd ~/bird/apps/api && php artisan app:update-muni-amounts
+```
+
+**説明**:
+- `0 0 1 * *` : 毎月1日の午前0時に実行
+- `cd ~/bird/apps/api` : バックエンドディレクトリに移動
+- `php artisan app:update-muni-amounts` : 市区町村価格データを自動更新
+
 ---
 
 ## 📄 ライセンス
