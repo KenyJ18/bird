@@ -1,0 +1,8 @@
+# コミット前に秘密情報を検出する pre-commit 設定
+# 有効化: pip install pre-commit && pre-commit install
+# 最新版へ更新: pre-commit autoupdate
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
