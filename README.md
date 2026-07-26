@@ -40,11 +40,20 @@ docker-compose up -d
 # バックエンドAPI: http://localhost:8080/api
 ```
 
-### 本番環境（共用レンタルサーバー）
+### 本番環境（共用レンタルサーバー）✅ デプロイ完了
+
+**🎉 ConoHa WING へのデプロイが完了しました！**
+
+- **フロントエンド**: https://2026072013276h6t47y8.conohawing.com
+- **API ベース**: https://2026072013276h6t47y8.conohawing.com (api ディレクトリから配信)
+- **サーバー**: ConoHa WING ベーシックプラン (月額 ¥882)
+- **PHP**: 8.5.6 (OPcache 有効)
+- **データベース**: MySQL 8.4.4
 
 **完全ガイド**: [QUICKSTART.md](QUICKSTART.md) 📝
 
 ```bash
+# 開発環境での構築方法
 # 1. フロントエンドビルド
 ./build-frontend.sh
 
@@ -313,6 +322,23 @@ docker-compose restart db
 
 # 接続確認
 docker-compose exec db psql -U bird_user -d bird
+
+# 1️⃣ 接続確認（最も重要）
+mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT VERSION();"
+
+# 2️⃣ テーブル一覧確認
+mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SHOW TABLES;"
+
+# 3️⃣ muni_amount テーブル確認
+mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT COUNT(*) FROM muni_amount;"
+
+# 4️⃣ muni_amount のデータ確認
+mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT * FROM muni_amount LIMIT 5;"
+
+# 5️⃣ Laravel tinker で確認
+cd ~/bird/apps/api && php artisan tinker
+# > \DB::connection()->getPdo()->getAttribute(\PDO::ATTR_CONNECTION_STATUS)
+
 ```
 
 ### Composerエラー
