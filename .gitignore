@@ -80,3 +80,9 @@ CONOHA_WING_INFO.md
 # Next.js 開発環境の一時ファイル
 frontend/.next/dev/
 prerender-manifest.json
+
+# 個人情報を含むファイル
+*.pem
+
+# スキルズ
+/Users/kenyj/bird/.claude/commands/review.md

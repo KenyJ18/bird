@@ -1,9 +1,30 @@
+# Node.js
 node_modules
 .next
+npm-debug.log
+
+# PHP / Laravel
+apps/api/vendor/
+apps/api/node_modules/
+apps/api/storage/logs/
+apps/api/storage/framework/cache/
+apps/api/storage/framework/sessions/
+apps/api/storage/framework/views/
+
+# Sensitive files - never embed in image
+.env
+.env.*
+apps/api/.env
+apps/api/.env.*
+
+# Git / OS
 .git
 .gitignore
-README.md
-npm-debug.log
 .DS_Store
 *.log
-.env*.local
+
+# Docs (not needed in image)
+README.md
+*.md
+docs/
+doc/
