@@ -44,8 +44,8 @@ docker-compose up -d
 
 **🎉 ConoHa WING へのデプロイが完了しました！**
 
-- **フロントエンド**: https://2026072013276h6t47y8.conohawing.com
-- **API ベース**: https://2026072013276h6t47y8.conohawing.com (api ディレクトリから配信)
+- **フロントエンド**: https://<YOUR_DOMAIN>.conohawing.com
+- **API ベース**: https://<YOUR_DOMAIN>.conohawing.com (api ディレクトリから配信)
 - **サーバー**: ConoHa WING ベーシックプラン (月額 ¥882)
 - **PHP**: 8.5.6 (OPcache 有効)
 - **データベース**: MySQL 8.4.4
@@ -324,16 +324,16 @@ docker-compose restart db
 docker-compose exec db psql -U bird_user -d bird
 
 # 1️⃣ 接続確認（最も重要）
-mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT VERSION();"
+mysql -h <DB_HOST> -u <DB_USER> -p<DB_PASSWORD> <DB_NAME> -e "SELECT VERSION();"
 
 # 2️⃣ テーブル一覧確認
-mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SHOW TABLES;"
+mysql -h <DB_HOST> -u <DB_USER> -p<DB_PASSWORD> <DB_NAME> -e "SHOW TABLES;"
 
 # 3️⃣ muni_amount テーブル確認
-mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT COUNT(*) FROM muni_amount;"
+mysql -h <DB_HOST> -u <DB_USER> -p<DB_PASSWORD> <DB_NAME> -e "SELECT COUNT(*) FROM muni_amount;"
 
 # 4️⃣ muni_amount のデータ確認
-mysql -h mysql2023.conoha.ne.jp -u wvvdc_bird_user -pcyCvov-cebse8-witzyc wvvdc_bird_db -e "SELECT * FROM muni_amount LIMIT 5;"
+mysql -h <DB_HOST> -u <DB_USER> -p<DB_PASSWORD> <DB_NAME> -e "SELECT * FROM muni_amount LIMIT 5;"
 
 # 5️⃣ Laravel tinker で確認
 cd ~/bird/apps/api && php artisan tinker
@@ -351,16 +351,16 @@ docker-compose exec api composer install
 ### Cron ジョブ確認
 ```bash
 # 1️⃣ 最も重要: Cron ジョブ一覧表示
-ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -l"
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -l"
 
 # 2️⃣ Cron ジョブの詳細確認
-ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -l | grep bird"
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -l | grep bird"
 
 # 3️⃣ Cron ジョブを削除（必要な場合）
-ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -r"
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -r"
 
 # 4️⃣ 新しい Cron ジョブを追加（必要な場合）
-ssh -i /Users/kenyj/ssh/key-2026-07-20-13-50.pem -p 8022 c5065425@www1217.conoha.ne.jp "crontab -e"
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -e"
 ```
 
 **現在の Cron ジョブ設定**:

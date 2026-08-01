@@ -16,6 +16,9 @@ frontend/out/
 apps/*/out/
 apps/*/.next/
 
+# Next.js development files (contains auto-generated keys)
+**/.next/dev/
+
 # Production
 /build
 /dist
@@ -84,5 +87,5 @@ prerender-manifest.json
 # 個人情報を含むファイル
 *.pem
 
-# スキルズ
-/Users/kenyj/bird/.claude/commands/review.md
+# 実際の認証情報（use .credentials.local.example as template）
+.credentials.local
