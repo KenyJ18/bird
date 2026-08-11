@@ -5,11 +5,57 @@ title = "bird gitleaks config"
 [extend]
 useDefault = true
 
+# -------------------------------------------------------
+# プロジェクト固有ルール
+# -------------------------------------------------------
+
+[[rules]]
+id = "reinfolib-api-key"
+description = "REINFOLIB API Key (国土交通省 不動産情報ライブラリ)"
+# REINFOLIB_API_KEY = <英数字・ハイフン・アンダースコア 16文字以上>
+regex = '''(?i)REINFOLIB_API_KEY\s*=\s*['"]?([A-Za-z0-9_\-]{16,})['"]?'''
+tags = ["key", "reinfolib"]
+
+  [rules.allowlist]
+  description = "プレースホルダを除外"
+  regexes = [
+    # .env.example に記載されたダミー値
+    '''your-reinfolib-api-key-here''',
+  ]
+
+[[rules]]
+id = "jwt-secret-hardcoded"
+description = "JWT Secret (bird project)"
+# JWT_SECRET = <32文字以上のランダム文字列>
+regex = '''(?i)JWT_SECRET\s*=\s*['"]?([A-Za-z0-9!@#$%^&*_\-]{32,})['"]?'''
+tags = ["key", "jwt"]
+
+  [rules.allowlist]
+  description = "プレースホルダを除外"
+  regexes = [
+    # .env.example に記載されたダミー値
+    '''your-jwt-secret-key-change-in-production-min-32-chars''',
+  ]
+
+# -------------------------------------------------------
+# グローバル allowlist：テンプレート/ドキュメントの誤検知を防ぐ
+# -------------------------------------------------------
+
 [allowlist]
-description = "テンプレート/ドキュメント内のプレースホルダを誤検知しない"
+description = "テンプレート・ドキュメントファイルを除外"
+
+# プレースホルダパターン
 regexes = [
   '''your-[a-z0-9-]*-key[a-z0-9-]*''',
   '''\*\*\*REDACTED\*\*\*''',
-  '''your-jwt-secret-key-change-in-production-min-32-chars''',
   '''\[[^\]]+\]''',            # [DBパスワード] のような日本語プレースホルダ
+]
+
+# テンプレートファイルはパスごと除外（markdown は検査対象に含める）
+paths = [
+  '''\.env\.example$''',
+  '''\.env\..*\.example$''',
+  '''\.credentials\.local\.example$''',
+  '''docs/.*''',
+  '''doc/.*''',
 ]

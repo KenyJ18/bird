@@ -1,0 +1,7 @@
+if ! command -v gitleaks > /dev/null 2>&1; then
+    echo "ERROR: gitleaks is not installed."
+    echo "Install with: brew install gitleaks"
+    exit 1
+fi
+
+gitleaks protect --staged --config .gitleaks.toml

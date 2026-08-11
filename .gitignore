@@ -89,3 +89,7 @@ prerender-manifest.json
 
 # 実際の認証情報（use .credentials.local.example as template）
 .credentials.local
+# /model スキル（ローカル専用・コミット対象外）
+.claude/skills/model/SKILL.md
+.claude/skills/model-opus/SKILL.md
+SECURITY_AUDIT_REPORT.md
