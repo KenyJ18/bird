@@ -477,12 +477,169 @@ function classify(muniCode) {
 - 予算はこの画面では表示のみ。金額の再入力・変更は行わない（変更は前画面に戻る想定）。
 - 「条件反映」を押すまで地図のハイライトは変わらない（セレクタ変更即時反映ではなくボタン適用方式）。
 
-## 9. 未確定・要確認事項
+## 9. デプロイ・運用状況（2026年8月15日時点）✅
 
-- 取込ジョブの正確な所要時間（実行時間帯は21:00〜翌08:00で確定。所要時間は実測で確認）。
-- ハイライト色・薄いグレー・グレーアウトの具体的な配色値、および件数併記の表示方法（ポップアップ/ツールチップ等）。
-- **直近四半期に取引0件となる（島嶼部を除く）1都3県の市区町村が実在するかの確認**。APIキーが未申請のため未確定。キー発行後に XIT001 で1都3県の全市区町村を直近四半期で照会し確認する。
-  - 参考：少数母数の扱い自体は「閾値で除外せず件数を画面併記」（§7.4）で確定済み。0件地域の実在有無に関わらず設計は成立する。
+### 9.1 完了済み事項
+
+#### デプロイ環境
+- **本番環境**: ConoHa WING ベーシックプラン（月額 ¥882）
+- **フロントエンド**: `~/public_html/` - Next.js 静的サイト（26ファイル、902KB）
+- **バックエンド**: `~/bird/apps/api/` - Laravel 13.20.0 DDD アーキテクチャ
+- **データベース**: MySQL 8.4.4（13テーブル作成済み、5件のテストデータ投入済み）
+- **PHP環境**: PHP 8.5.6（OPcache 有効）
+- **Cron設定**: 月次データ更新ジョブ（`0 0 1 * * cd ~/bird/apps/api && php artisan app:update-muni-amounts`）
+- **デプロイ日**: 2026年7月20日
+
+#### セキュリティ対策（2026年8月11日完了）
+- ✅ **機密ファイル削除**: `frontend/.next/dev/`（143ファイル、自動生成暗号化キー含む）を Git 履歴から完全削除
+- ✅ **認証情報マスク**: README.md、CONOHA_WING_INFO.md のハードコードされた認証情報をプレースホルダーに置換
+- ✅ **`.gitignore` 強化**: `.credentials.local`、`**/.next/dev/`、セキュリティスキャンレポートを追加
+- ✅ **認証情報テンプレート**: `.credentials.local.example` 作成（実際の値は `.credentials.local` に保存、Git 追跡外）
+- ✅ **Git 履歴クリーンアップ**: BFG Repo-Cleaner で機密ファイルを履歴から削除、GitHub に force push
+- ✅ **gitleaks スキャン**: 21件の漏洩検出 → 完全解決（Git 履歴: `no leaks found`）
+- ✅ **パブリックリポジトリ監査**: GitHub 公開済み（https://github.com/KenyJ18/bird）、機密情報漏洩なし確認済み
+  - 詳細: [SECURITY_AUDIT_REPORT.md](SECURITY_AUDIT_REPORT.md)
+
+#### APIキー管理・AIプロンプト漏洩防止（2026年8月15日完了）
+- ✅ **reinfolib API キー取得**: 利用申請承認済み、キー保持
+- ✅ **GitHub Secrets への登録**: `REINFOLIB_API_KEY` を GitHub Actions Secrets に保管（唯一の正ソース）
+- ✅ **GitHub Actions デプロイワークフロー**: `.github/workflows/deploy.yml` を作成。GitHub Secrets からSSH経由でサーバーの `.env` に書き込み、`chmod 600` と `config:cache` を自動実行
+- ✅ **`.env.example` への記載**: キー名のみ記載（値なし）。`config/services.php` に `reinfolib.api_key` として登録済み
+- ✅ **AIセッション中の機密漏洩防止（3層防御）**: 下記 §9.4 参照
+
+### 9.2 未確定・要確認事項
+
+#### 優先度: 高（機能実装に必須）
+
+1. **市区町村境界データの準備**
+   - ソース: 国土数値情報「行政区域データ（N03）」または geolonia 系
+   - 必要な加工:
+     - 1都3県（東京13・神奈川14・埼玉11・千葉12）への絞り込み
+     - 島嶼部9町村の除外（大島町13361〜小笠原村13421）
+     - TopoJSON への変換（軽量化）
+   - 保存場所: `frontend/public/data/municipalities.json`
+
+2. **環境変数の設定**
+   - バックエンド `.env`:
+     ```bash
+     REINFOLIB_API_KEY=<取得後に設定>
+     DB_CONNECTION=mysql
+     DB_HOST=<実際のホスト>
+     DB_DATABASE=wvvdc_bird_db
+     DB_USERNAME=wvvdc_bird_user
+     DB_PASSWORD=<実際のパスワード>
+     ```
+   - フロントエンド `.env.local`:
+     ```bash
+     NEXT_PUBLIC_API_BASE_URL=https://<YOUR_DOMAIN>/api
+     ```
+
+#### 優先度: 中（UI/UX の詳細）
+
+4. **ハイライト色の具体的な配色値**（§7.3）
+   - 予算以下: 緑（例: `#4FA97E`）
+   - 予算+1000万円以内: オレンジ（例: `#E08A3C`）
+   - 予算+1000万円超: 赤（例: `#D9534F`）
+   - 直近四半期0件: 薄いグレー（例: `#D3D1C7`）
+   - 全期間0件: グレーアウト（例: `#B4B2A9`）
+   - ※ アクセシビリティ（色覚多様性）を考慮して最終調整
+
+5. **件数併記の表示方法**（§7.4）
+   - 候補1: MapLibre の `<Popup>` コンポーネント（市区町村クリック時）
+   - 候補2: ホバー時のツールチップ
+   - 表示内容: 「中古マンション等 取引価格 中央値 ◯◯円（取引◯件）」
+   - 実装: `react-map-gl` の Popup/Tooltip 機能を使用
+
+#### 優先度: 低（実測・最適化）
+
+6. **取込ジョブの所要時間**
+   - 実行時間帯: 21:00〜翌08:00（約11時間の窓で確定）
+   - 見込み: 対象約200市区町村 × リクエスト間隔 = 十数分〜1時間
+   - 確認方法: APIキー取得後、初回実行時にログで実測
+
+7. **直近四半期0件市区町村の実在確認**
+   - APIキー取得後、XIT001 で1都3県の全市区町村を直近四半期で照会
+   - 0件地域が実在すれば「薄いグレー」表示の実装を優先
+   - 参考: 設計は0件の有無に関わらず成立（§7.4 確定済み）
+
+### 9.3 次のアクションアイテム
+
+#### フェーズ1: 環境準備（APIキー取得前でも可能）
+- [ ] 市区町村境界データの取得・加工（1都3県・島嶼部除外）
+- [ ] MapLibre 地図コンポーネントの実装（背景地図・境界表示）
+- [ ] セレクタUI の実装（データ種類・価格区分・統計指標）
+- [ ] 配色テーマの確定（アクセシビリティ検証）
+- [ ] フッターの規約表示実装（出典・加工クレジット・免責文）
+
+#### フェーズ2: API統合（APIキー取得後）
+- [x] reinfolib API キーの利用申請・取得（完了）
+- [x] APIキー管理体制の整備（GitHub Secrets + デプロイワークフロー + AIガード、完了）
+- [x] バックエンド API エンドポイント実装（完了、詳細: `docs/design/PHASE_2_ITEM7_BACKEND_API.md`）:
+  - `GET /api/muni/amounts?type=&priceCategory=`（2段階グレーアウト対応・camelCaseフラット配列）
+  - `GET /api/muni/snapshot-meta`（データなし時 404）
+- [ ] データ取込バッチの実装（§5.1）
+- [ ] 更新検知ポーリングの実装（§5.0）
+- [ ] Cron ジョブの更新（月次 → 週次ポーリング + 取込）
+
+#### フェーズ3: 検証・最適化
+- [ ] 取込ジョブの所要時間実測
+- [ ] 直近四半期0件市区町村の確認
+- [ ] エンドツーエンドテスト（EnterCheck → Map 画面遷移）
+- [ ] パフォーマンス検証（地図描画・API レスポンス）
+- [ ] アクセシビリティ監査（色覚多様性・キーボード操作）
+
+### 9.4 APIキー管理・AIプロンプト漏洩防止（2026年8月15日実装）
+
+#### 脅威モデル
+
+| 経路 | 内容 |
+| --- | --- |
+| 経路A | Claude Code が `Read`/`Bash` ツールで `.env` を直接読み込み、プロンプトに乗る |
+| 経路B | `gh copilot` / `claude` CLI 起動時にユーザーが `.env` の内容を手動でペーストする |
+| 経路C | `cat .env` / `printenv` 等の Bash コマンド経由でセッションに値が混入する |
+| 経路D | Git コミット時に `.env` の内容が誤って記録される |
+
+#### 防御層の全体像
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer C: Shell preexec (~/.zshrc)                          │
+│  claude / gh copilot 起動時にカレントディレクトリをスキャン  │
+│  → 機密ファイルを検出したら警告メッセージを表示             │
+│  対象: claude CLI, gh copilot CLI 両方（経路B対策）         │
+├─────────────────────────────────────────────────────────────┤
+│  Layer A: permissions.deny (.claude/settings.json)          │
+│  Read ツールによる .env 読み込みを宣言的にブロック          │
+│  → Claude Code が実行前に拒否（経路A対策）                  │
+├─────────────────────────────────────────────────────────────┤
+│  Layer B: PreToolUse hook (.claude/hooks/secret-guard.sh)   │
+│  Bash ツール経由の間接アクセスをスクリプトで検査・遮断      │
+│  → cat .env / printenv / grep .env / tinker env()          │
+│  （経路C対策）                                              │
+├─────────────────────────────────────────────────────────────┤
+│  (既存) Layer 0: gitleaks + .gitignore                      │
+│  Git コミット時点で APIキー漏洩を防止（経路D対策）          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 実装ファイル
+
+| ファイル | 役割 |
+| --- | --- |
+| `.claude/settings.json` | `permissions.deny` で `.env` / `.env.local` 等への `Read` をブロック。`PreToolUse` フックを登録 |
+| `.claude/hooks/secret-guard.sh` | Bash ツールの `cat .env` / `grep .env` / `printenv` / `tinker env()` をブロックし `{"decision":"block"}` を返す |
+| `~/.zshrc`（グローバル） | `preexec` フックで `claude` / `gh copilot` 起動前に機密ファイルの存在を警告 |
+| `.github/workflows/deploy.yml` | `REINFOLIB_API_KEY` を GitHub Secrets からSSH経由でサーバーの `.env` に書き込み（`chmod 600` + `config:cache` 自動実行） |
+
+#### APIキーの参照方法（コード内）
+
+```php
+// ✅ 正しい（config:cache を経由）
+$key = config('services.reinfolib.api_key');
+
+// ❌ 誤り（config:cache 時に env() はキャッシュを迂回する）
+$key = env('REINFOLIB_API_KEY');
+```
 
 ## 10. 参照
 

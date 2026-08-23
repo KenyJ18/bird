@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/kenyj/bird/.github/ 2>/dev/null && cat /Users/kenyj/bird/.github/workflows/*.yml 2>/dev/null | head -60 || echo \"NOT FOUND\" && echo \"---\" && cat /Users/kenyj/bird/apps/api/.env 2>/dev/null | grep -v \"PASSWORD\\\\|KEY\\\\|SECRET\\\\|pass\" || echo \".env not readable locally\")",
+      "Bash(cat /Users/kenyj/bird/.gitleaks.toml 2>/dev/null || cat /Users/kenyj/bird/.gitleaks/*.toml 2>/dev/null || find /Users/kenyj/bird -name \"*.toml\" -maxdepth 3 | head -10)",
+      "Bash(chmod +x /Users/kenyj/bird/.claude/hooks/secret-guard.sh)",
+      "Bash(source /Users/kenyj/.zshrc 2>&1 && echo \"source 完了\")",
+      "Bash(find /Users/kenyj/bird/apps/api/src -type f -name \"*.php\" 2>/dev/null | sort)",
+      "Bash(ls /Users/kenyj/bird/frontend/src 2>/dev/null; find /Users/kenyj/bird/frontend -name \"*.ts\" -o -name \"*.tsx\" 2>/dev/null | grep -i \"muni\\\\|amount\\\\|api\" | head -20)",
+      "Bash(find /Users/kenyj/bird/src -type f -name \"*.ts\" -o -name \"*.tsx\" 2>/dev/null | head -20)",
+      "Bash(find /Users/kenyj/bird/frontend/src -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) 2>/dev/null | grep -v node_modules | head -30)",
+      "Bash(grep -r \"muniCode\\\\|muni_code\\\\|latestCount\\\\|snapshot-meta\\\\|/api/muni\" /Users/kenyj/bird/src --include=\"*.tsx\" --include=\"*.ts\" 2>/dev/null | head -20)",
+      "Bash(cd /Users/kenyj/bird/apps/api && composer dump-autoload 2>&1)",
+      "Bash(php artisan route:list --path=api/muni 2>&1)"
+    ]
+  }
+}

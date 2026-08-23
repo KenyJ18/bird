@@ -18,7 +18,7 @@ interface MunicipalityAmountRepositoryInterface
 {
     /**
      * データ種類と価格区分で市区町村金額を取得
-     * 
+     *
      * @param DataType $dataType
      * @param PriceCategory $priceCategory
      * @param Period|null $period 指定しない場合は最新四半期
@@ -28,6 +28,18 @@ interface MunicipalityAmountRepositoryInterface
         DataType $dataType,
         PriceCategory $priceCategory,
         ?Period $period = null
+    ): array;
+
+    /**
+     * 2段階グレーアウト対応取得。過去1年に1件でも取引がある全市区町村を返す
+     *
+     * @param DataType $dataType
+     * @param PriceCategory $priceCategory
+     * @return MunicipalityAmount[]
+     */
+    public function findWithGreyoutByTypeAndCategory(
+        DataType $dataType,
+        PriceCategory $priceCategory
     ): array;
 
     /**

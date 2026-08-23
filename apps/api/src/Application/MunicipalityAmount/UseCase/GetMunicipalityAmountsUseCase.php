@@ -19,29 +19,15 @@ final readonly class GetMunicipalityAmountsUseCase
     }
 
     /**
-     * 市区町村金額一覧を取得
+     * 市区町村金額一覧を取得（2段階グレーアウト対応）
      */
     public function execute(GetMunicipalityAmountsRequest $request): GetMunicipalityAmountsResponse
     {
-        // リクエストから期間を取得、指定がない場合は最新を取得
-        $period = $request->period ?? $this->repository->getLatestPeriod();
-        
-        if ($period === null) {
-            // データが存在しない場合は空配列を返す
-            return new GetMunicipalityAmountsResponse([], 'N/A');
-        }
-
-        // リポジトリから市区町村金額を取得
-        $municipalityAmounts = $this->repository->findByTypeAndCategory(
+        $municipalityAmounts = $this->repository->findWithGreyoutByTypeAndCategory(
             $request->dataType,
-            $request->priceCategory,
-            $period
+            $request->priceCategory
         );
 
-        // レスポンスDTOに変換
-        return GetMunicipalityAmountsResponse::fromEntities(
-            $municipalityAmounts,
-            $period->value()
-        );
+        return GetMunicipalityAmountsResponse::fromEntities($municipalityAmounts);
     }
 }

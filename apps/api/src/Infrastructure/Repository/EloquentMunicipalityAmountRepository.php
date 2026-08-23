@@ -98,6 +98,48 @@ class EloquentMunicipalityAmountRepository implements MunicipalityAmountReposito
             ->delete();
     }
 
+    public function findWithGreyoutByTypeAndCategory(
+        DataType $dataType,
+        PriceCategory $priceCategory
+    ): array {
+        $type     = $dataType->value();
+        $category = $priceCategory->value();
+
+        $rows = \Illuminate\Support\Facades\DB::select("
+            WITH latest AS (SELECT MAX(period) AS p FROM muni_amount)
+            SELECT
+                h.muni_code,
+                la.avg_trade_price,
+                la.median_trade_price,
+                COALESCE(la.txn_count, 0)                          AS latest_count,
+                COALESCE(la.period, (SELECT p FROM latest))        AS period,
+                COALESCE(la.updated_at, CURRENT_TIMESTAMP)         AS updated_at
+            FROM (
+                SELECT DISTINCT muni_code
+                FROM muni_amount
+                WHERE type = ? AND price_category = ?
+            ) h
+            LEFT JOIN muni_amount la
+                ON  la.muni_code      = h.muni_code
+                AND la.type           = ?
+                AND la.price_category = ?
+                AND la.period         = (SELECT p FROM latest)
+        ", [$type, $category, $type, $category]);
+
+        return array_map(function (object $row) use ($dataType, $priceCategory): MunicipalityAmount {
+            return new MunicipalityAmount(
+                municipalityCode: new MunicipalityCode($row->muni_code),
+                dataType:         $dataType,
+                priceCategory:    $priceCategory,
+                averageTradePrice:  $row->avg_trade_price !== null ? (int) $row->avg_trade_price : null,
+                medianTradePrice:   $row->median_trade_price !== null ? (int) $row->median_trade_price : null,
+                transactionCount: (int) $row->latest_count,
+                period:           new Period($row->period),
+                updatedAt:        new \DateTimeImmutable($row->updated_at)
+            );
+        }, $rows);
+    }
+
     /**
      * EloquentモデルをDomainエンティティに変換
      */

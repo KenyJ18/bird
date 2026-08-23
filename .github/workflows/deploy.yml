@@ -1,0 +1,41 @@
+name: deploy
+
+on:
+  workflow_dispatch:  # 手動実行のみ（自動デプロイが必要な場合は push トリガーを追加）
+
+jobs:
+  deploy:
+    name: Deploy to ConoHa WING
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write .env to server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.CONOHA_SSH_HOST }}
+          username: ${{ secrets.CONOHA_SSH_USER }}
+          key: ${{ secrets.CONOHA_SSH_PRIVATE_KEY }}
+          port: 8022
+          script: |
+            set -e
+            ENV_FILE="$HOME/bird/apps/api/.env"
+
+            # REINFOLIB_API_KEY を .env に書き込む（既存キーを更新、なければ追記）
+            if grep -q "^REINFOLIB_API_KEY=" "$ENV_FILE" 2>/dev/null; then
+              sed -i "s|^REINFOLIB_API_KEY=.*|REINFOLIB_API_KEY=${{ secrets.REINFOLIB_API_KEY }}|" "$ENV_FILE"
+            else
+              echo "REINFOLIB_API_KEY=${{ secrets.REINFOLIB_API_KEY }}" >> "$ENV_FILE"
+            fi
+
+            # .env のパーミッションを owner-read-only に設定
+            chmod 600 "$ENV_FILE"
+
+            # Laravel 設定キャッシュを再生成
+            cd "$HOME/bird/apps/api"
+            php artisan config:clear
+            php artisan config:cache
+
+            echo "✓ .env updated and config cache refreshed"
