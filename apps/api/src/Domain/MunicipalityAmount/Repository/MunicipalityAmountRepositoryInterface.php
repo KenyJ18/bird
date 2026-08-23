@@ -80,4 +80,14 @@ interface MunicipalityAmountRepositoryInterface
      * @return string[] 削除した period の一覧（削除がなければ空配列）
      */
     public function pruneHistory(int $keepLatestPeriods): array;
+
+    /**
+     * 指定した period で muni_amount に1件以上データが存在する都道府県コード（2桁）を返す
+     *
+     * 更新検知ポーリング（設計書 §5.0 部分公開への保険）が、当該四半期の取込が
+     * 1都3県すべて揃っているかを判定するために使う。
+     *
+     * @return string[] 都道府県コード（'11'/'12'/'13'/'14'）の一覧。重複なし
+     */
+    public function coveredPrefectureCodes(Period $period): array;
 }

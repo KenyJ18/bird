@@ -183,6 +183,77 @@ class ReinfolibApiClient implements ReinfolibApiClientInterface
         return $allTransactions;
     }
 
+    public function probeAreaHasData(PrefectureCode $prefectureCode, Period $period): bool
+    {
+        // プローブは軽量リトライ（2回）に留める。ここでの一時的な失敗は
+        // 「今回は判定できなかった」として扱い、呼び出し元は次回ポーリングで再判定すればよい。
+        $maxAttempts = 2;
+        $lastError = null;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                Log::info('Reinfolib API 更新検知プローブ', [
+                    'prefecture' => $prefectureCode->value(),
+                    'period' => $period->value(),
+                    'attempt' => $attempt,
+                ]);
+
+                $response = $this->httpClient->get(self::BASE_URL, [
+                    'query' => [
+                        'year' => $period->year(),
+                        'quarter' => $period->quarter(),
+                        'area' => $prefectureCode->value(),
+                    ],
+                    'headers' => [
+                        'Ocp-Apim-Subscription-Key' => $this->apiKey,
+                        'Accept' => 'application/json',
+                    ],
+                    'timeout' => self::TIMEOUT,
+                    'http_errors' => false,
+                ]);
+
+                $statusCode = $response->getStatusCode();
+
+                if ($statusCode === 404) {
+                    return false;
+                }
+
+                if ($statusCode === 429) {
+                    $retryAfter = (int) ($response->getHeaderLine('Retry-After') ?: self::RATE_LIMIT_WAIT_SECONDS);
+                    Log::warning('Reinfolib API プローブがレート制限(429)。待機してリトライします', [
+                        'prefecture' => $prefectureCode->value(),
+                        'waitSeconds' => $retryAfter,
+                    ]);
+                    $lastError = 'HTTP 429 (レート制限)';
+                    if ($attempt < $maxAttempts) {
+                        sleep($retryAfter);
+                    }
+                    continue;
+                }
+
+                if ($statusCode === 200) {
+                    return true;
+                }
+
+                $lastError = "HTTP {$statusCode}";
+            } catch (GuzzleException $e) {
+                $lastError = $e->getMessage();
+                Log::warning('Reinfolib API プローブ通信エラー', [
+                    'prefecture' => $prefectureCode->value(),
+                    'attempt' => $attempt,
+                    'error' => $e->getMessage(),
+                ]);
+                if ($attempt < $maxAttempts) {
+                    sleep(self::BACKOFF_BASE_SECONDS);
+                }
+            }
+        }
+
+        throw new RuntimeException(
+            "Reinfolib API プローブが判定不能（{$maxAttempts}回試行後も200/404いずれでもない）: {$lastError}"
+        );
+    }
+
     /**
      * APIレスポンスをパースしてエンティティ配列に変換
      * 

@@ -34,7 +34,7 @@ interface ReinfolibApiClientInterface
 
     /**
      * すべての対象エリア（1都3県）のデータを取得
-     * 
+     *
      * @param Period $period 取得対象期間
      * @param ReinfolibDataType $dataType データタイプ
      * @param ReinfolibPriceCategory $priceCategory 価格区分
@@ -45,4 +45,16 @@ interface ReinfolibApiClientInterface
         ReinfolibDataType $dataType,
         ReinfolibPriceCategory $priceCategory
     ): array;
+
+    /**
+     * 更新検知ポーリング用の軽量プローブ（設計書 §5.0）
+     *
+     * 指定した都道府県・四半期にデータが存在するか（HTTP 200 か 404 か）だけを判定する。
+     * レスポンス本文の取得・パースは行わない。dataType/priceClassification による絞り込みは
+     * 行わず、都道府県・四半期単位で「データが1件でも存在するか」のみを見る。
+     *
+     * @return bool 200（データあり）なら true、404（データなし＝未公開 or 0件）なら false
+     * @throws \RuntimeException リトライ上限まで200/404いずれの判定もできなかった場合
+     */
+    public function probeAreaHasData(PrefectureCode $prefectureCode, Period $period): bool;
 }

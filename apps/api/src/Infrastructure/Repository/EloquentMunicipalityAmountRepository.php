@@ -127,6 +127,16 @@ class EloquentMunicipalityAmountRepository implements MunicipalityAmountReposito
         return $deletedPeriods;
     }
 
+    public function coveredPrefectureCodes(Period $period): array
+    {
+        // MySQL/SQLite いずれも SUBSTR をサポートするため DB非依存で書ける
+        return MunicipalityAmountModel::query()
+            ->where('period', $period->value())
+            ->selectRaw('DISTINCT SUBSTR(muni_code, 1, 2) AS prefecture_code')
+            ->pluck('prefecture_code')
+            ->all();
+    }
+
     public function findWithGreyoutByTypeAndCategory(
         DataType $dataType,
         PriceCategory $priceCategory

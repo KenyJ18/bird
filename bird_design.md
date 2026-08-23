@@ -581,7 +581,10 @@ function classify(muniCode) {
   - `php artisan app:update-muni-amounts {--period=}` を新規実装
   - 3データ種類×2価格区分ごとに集計・upsert、島嶼部除外、履歴保持（直近4四半期）、
     `snapshot_meta` 更新をトランザクションでまとめて実行（失敗時は前回データを維持）
-- [ ] 更新検知ポーリングの実装（§5.0）
+- [x] 更新検知ポーリングの実装（§5.0、完了。詳細: `docs/design/PHASE_2_ITEM9_UPDATE_DETECTION_POLLING.md`）:
+  - `php artisan app:poll-muni-amounts-update` を新規実装
+  - 現行スナップショット期間が1都3県揃っているか（`muni_amount` から導出）を判定し、
+    未充足なら同一期間を穴埋め再取込、充足済みなら次四半期を軽量プローブして新規検知
 - [ ] Cron ジョブの更新（月次 → 週次ポーリング + 取込）
 
 #### フェーズ3: 検証・最適化
