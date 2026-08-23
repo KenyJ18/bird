@@ -577,7 +577,10 @@ function classify(muniCode) {
 - [x] バックエンド API エンドポイント実装（完了、詳細: `docs/design/PHASE_2_ITEM7_BACKEND_API.md`）:
   - `GET /api/muni/amounts?type=&priceCategory=`（2段階グレーアウト対応・camelCaseフラット配列）
   - `GET /api/muni/snapshot-meta`（データなし時 404）
-- [ ] データ取込バッチの実装（§5.1）
+- [x] データ取込バッチの実装（§5.1、完了。詳細: `docs/design/PHASE_2_ITEM8_REINFOLIB_CLIENT_FIX.md`）:
+  - `php artisan app:update-muni-amounts {--period=}` を新規実装
+  - 3データ種類×2価格区分ごとに集計・upsert、島嶼部除外、履歴保持（直近4四半期）、
+    `snapshot_meta` 更新をトランザクションでまとめて実行（失敗時は前回データを維持）
 - [ ] 更新検知ポーリングの実装（§5.0）
 - [ ] Cron ジョブの更新（月次 → 週次ポーリング + 取込）
 

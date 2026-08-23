@@ -8,15 +8,17 @@ use InvalidArgumentException;
 
 /**
  * ReinfolibデータタイプValue Object
- * 
- * Reinfolib APIで使用するデータタイプコード
+ *
+ * XIT001 にはデータ種類を絞り込むクエリパラメータが存在しない。
+ * レスポンスの `Type` フィールドがそのまま日本語ラベルで返るため、
+ * 値はそのラベル自体を保持し、レスポンスの後段フィルタリングに使う（設計書 §2.1・§7.2参照）
  */
 final readonly class ReinfolibDataType
 {
-    // データタイプコード（設計書 §7.2参照）
-    public const RESIDENTIAL_LAND = '13';           // 宅地(土地)
-    public const RESIDENTIAL_LAND_BUILDING = '14';  // 宅地(土地と建物)
-    public const USED_CONDOMINIUM = '15';           // 中古マンション等
+    // データタイプ（レスポンス Type フィールドの値そのもの。設計書 §7.2参照）
+    public const RESIDENTIAL_LAND = '宅地(土地)';
+    public const RESIDENTIAL_LAND_BUILDING = '宅地(土地と建物)';
+    public const USED_CONDOMINIUM = '中古マンション等';
 
     private const VALID_CODES = [
         self::RESIDENTIAL_LAND,
@@ -64,12 +66,7 @@ final readonly class ReinfolibDataType
      */
     public static function fromDataType(\Domain\MunicipalityAmount\ValueObject\DataType $dataType): self
     {
-        return match ($dataType->value()) {
-            '宅地(土地)' => new self(self::RESIDENTIAL_LAND),
-            '宅地(土地と建物)' => new self(self::RESIDENTIAL_LAND_BUILDING),
-            '中古マンション等' => new self(self::USED_CONDOMINIUM),
-            default => throw new InvalidArgumentException("未対応のデータタイプ: {$dataType->value()}"),
-        };
+        return new self($dataType->value());
     }
 
     /**
@@ -77,12 +74,6 @@ final readonly class ReinfolibDataType
      */
     public function toDataType(): \Domain\MunicipalityAmount\ValueObject\DataType
     {
-        $value = match ($this->value) {
-            self::RESIDENTIAL_LAND => '宅地(土地)',
-            self::RESIDENTIAL_LAND_BUILDING => '宅地(土地と建物)',
-            self::USED_CONDOMINIUM => '中古マンション等',
-        };
-
-        return new \Domain\MunicipalityAmount\ValueObject\DataType($value);
+        return new \Domain\MunicipalityAmount\ValueObject\DataType($this->value);
     }
 }

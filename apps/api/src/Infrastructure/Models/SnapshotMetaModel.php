@@ -15,5 +15,6 @@ class SnapshotMetaModel extends Model
     public $timestamps = false;
     protected $primaryKey = 'id';
     public $incrementing = false;
+    protected $fillable = ['id', 'period', 'snapshot_at'];
     protected $casts = ['snapshot_at' => 'immutable_datetime'];
 }

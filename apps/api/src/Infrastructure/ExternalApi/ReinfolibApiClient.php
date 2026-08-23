@@ -23,6 +23,11 @@ class ReinfolibApiClient implements ReinfolibApiClientInterface
     private const BASE_URL = 'https://www.reinfolib.mlit.go.jp/ex-api/external/XIT001';
     private const TIMEOUT = 30;
 
+    // リトライ設定（設計書 §5.1「リトライ／指数バックオフ・429時の待機」対応）
+    private const MAX_ATTEMPTS = 3;
+    private const BACKOFF_BASE_SECONDS = 2;
+    private const RATE_LIMIT_WAIT_SECONDS = 60; // 429時、Retry-Afterヘッダがない場合の固定待機秒数
+
     public function __construct(
         private readonly Client $httpClient,
         private readonly string $apiKey
@@ -35,55 +40,112 @@ class ReinfolibApiClient implements ReinfolibApiClientInterface
         ReinfolibDataType $dataType,
         ReinfolibPriceCategory $priceCategory
     ): array {
-        try {
-            Log::info('Reinfolib API呼び出し開始', [
-                'prefecture' => $prefectureCode->value(),
-                'period' => $period->value(),
-                'dataType' => $dataType->value(),
-                'priceCategory' => $priceCategory->value(),
-            ]);
+        $lastError = null;
 
-            $response = $this->httpClient->get(self::BASE_URL, [
-                'query' => [
-                    'year' => $period->year(),
-                    'period' => $period->quarter(),
-                    'area' => $prefectureCode->value(),
-                ],
-                'headers' => [
-                    'Ocp-Apim-Subscription-Key' => $this->apiKey,
-                    'Accept' => 'application/json',
-                ],
-                'timeout' => self::TIMEOUT,
-                'stream' => true, // ストリーミング有効化
-            ]);
+        for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
+            try {
+                Log::info('Reinfolib API呼び出し開始', [
+                    'prefecture' => $prefectureCode->value(),
+                    'period' => $period->value(),
+                    'dataType' => $dataType->value(),
+                    'priceCategory' => $priceCategory->value(),
+                    'attempt' => $attempt,
+                ]);
 
-            $statusCode = $response->getStatusCode();
-            if ($statusCode !== 200) {
-                throw new RuntimeException("Reinfolib API呼び出しエラー: HTTP {$statusCode}");
+                $response = $this->httpClient->get(self::BASE_URL, [
+                    'query' => [
+                        'year' => $period->year(),
+                        'quarter' => $period->quarter(),
+                        'area' => $prefectureCode->value(),
+                        'priceClassification' => $priceCategory->value(),
+                    ],
+                    'headers' => [
+                        'Ocp-Apim-Subscription-Key' => $this->apiKey,
+                        'Accept' => 'application/json',
+                    ],
+                    'timeout' => self::TIMEOUT,
+                    'stream' => true, // ストリーミング有効化
+                    'http_errors' => false, // 4xx/5xxで例外にせず自前でハンドリングする
+                ]);
+
+                $statusCode = $response->getStatusCode();
+
+                // 404 = 四半期未公開 or その都道府県は該当四半期0件（設計書 §5.0）。
+                // エラーではなく「データなし」として扱い、リトライせず空配列を返す。
+                if ($statusCode === 404) {
+                    Log::info('Reinfolib API 404（データなし）', [
+                        'prefecture' => $prefectureCode->value(),
+                        'period' => $period->value(),
+                    ]);
+                    return [];
+                }
+
+                if ($statusCode === 429) {
+                    // Retry-After ヘッダがあればその指示に従い、なければ固定60秒待機する
+                    $retryAfter = (int) ($response->getHeaderLine('Retry-After') ?: self::RATE_LIMIT_WAIT_SECONDS);
+                    Log::warning('Reinfolib API レート制限(429)。待機してリトライします', [
+                        'prefecture' => $prefectureCode->value(),
+                        'attempt' => $attempt,
+                        'waitSeconds' => $retryAfter,
+                    ]);
+                    $lastError = "HTTP 429 (レート制限)";
+                    if ($attempt < self::MAX_ATTEMPTS) {
+                        sleep($retryAfter);
+                    }
+                    continue;
+                }
+
+                if ($statusCode !== 200) {
+                    throw new RuntimeException("Reinfolib API呼び出しエラー: HTTP {$statusCode}");
+                }
+
+                // ストリームから少しずつ読み込む
+                $body = '';
+                $stream = $response->getBody();
+                while (!$stream->eof()) {
+                    $body .= $stream->read(8192); // 8KBずつ読み込む
+                }
+
+                $data = json_decode($body, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new RuntimeException('Reinfolib APIレスポンスのJSON解析エラー: ' . json_last_error_msg());
+                }
+
+                return $this->parseResponse($data, $dataType, $priceCategory, $period);
+
+            } catch (GuzzleException $e) {
+                $lastError = $e->getMessage();
+                Log::warning('Reinfolib API通信エラー', [
+                    'error' => $e->getMessage(),
+                    'prefecture' => $prefectureCode->value(),
+                    'attempt' => $attempt,
+                ]);
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep(self::BACKOFF_BASE_SECONDS * $attempt); // 簡易指数バックオフ
+                }
+            } catch (RuntimeException $e) {
+                // HTTPエラー(404/429以外)・JSON解析エラーはリトライ対象
+                $lastError = $e->getMessage();
+                Log::warning('Reinfolib API呼び出し失敗', [
+                    'error' => $e->getMessage(),
+                    'prefecture' => $prefectureCode->value(),
+                    'attempt' => $attempt,
+                ]);
+                if ($attempt < self::MAX_ATTEMPTS) {
+                    sleep(self::BACKOFF_BASE_SECONDS * $attempt);
+                }
             }
-
-            // ストリームから少しずつ読み込む
-            $body = '';
-            $stream = $response->getBody();
-            while (!$stream->eof()) {
-                $body .= $stream->read(8192); // 8KBずつ読み込む
-            }
-            
-            $data = json_decode($body, true);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new RuntimeException('Reinfolib APIレスポンスのJSON解析エラー: ' . json_last_error_msg());
-            }
-
-            return $this->parseResponse($data, $dataType, $priceCategory, $period);
-
-        } catch (GuzzleException $e) {
-            Log::error('Reinfolib API通信エラー', [
-                'error' => $e->getMessage(),
-                'prefecture' => $prefectureCode->value(),
-            ]);
-            throw new RuntimeException("Reinfolib API通信エラー: {$e->getMessage()}", 0, $e);
         }
+
+        Log::error('Reinfolib API通信エラー（リトライ上限到達）', [
+            'prefecture' => $prefectureCode->value(),
+            'period' => $period->value(),
+            'lastError' => $lastError,
+        ]);
+        throw new RuntimeException(
+            "Reinfolib API通信エラー（" . self::MAX_ATTEMPTS . "回リトライ後も失敗）: {$lastError}"
+        );
     }
 
     public function fetchAllTargetAreaTransactions(
@@ -93,35 +155,29 @@ class ReinfolibApiClient implements ReinfolibApiClientInterface
     ): array {
         $allTransactions = [];
 
+        // 404（データなし）は fetchTransactions 内で空配列として吸収されるため、
+        // ここに例外が伝播するのは「404/429以外の失敗がリトライ上限まで続いた」場合のみ。
+        // その場合は途中経過を握りつぶさず呼び出し元（バッチ）に伝播させ、
+        // 不完全な四半期データで muni_amount を更新しないようにする（可用性優先・設計書 §5.1）。
         foreach (PrefectureCode::targetAreaCodes() as $code) {
             $prefectureCode = new PrefectureCode($code);
-            
-            try {
-                $transactions = $this->fetchTransactions(
-                    $prefectureCode,
-                    $period,
-                    $dataType,
-                    $priceCategory
-                );
-                
-                $allTransactions = array_merge($allTransactions, $transactions);
-                
-                Log::info('都道府県データ取得完了', [
-                    'prefecture' => $code,
-                    'count' => count($transactions),
-                ]);
 
-                // API負荷軽減のため、都道府県間で1秒待機
-                sleep(1);
+            $transactions = $this->fetchTransactions(
+                $prefectureCode,
+                $period,
+                $dataType,
+                $priceCategory
+            );
 
-            } catch (RuntimeException $e) {
-                Log::warning('都道府県データ取得失敗（スキップ）', [
-                    'prefecture' => $code,
-                    'error' => $e->getMessage(),
-                ]);
-                // エラーが発生しても他の都道府県のデータ取得は継続
-                continue;
-            }
+            $allTransactions = array_merge($allTransactions, $transactions);
+
+            Log::info('都道府県データ取得完了', [
+                'prefecture' => $code,
+                'count' => count($transactions),
+            ]);
+
+            // API負荷軽減のため、都道府県間で1秒待機
+            sleep(1);
         }
 
         return $allTransactions;
@@ -156,8 +212,13 @@ class ReinfolibApiClient implements ReinfolibApiClientInterface
                 continue;
             }
 
-            // データタイプのフィルタリング
+            // データタイプのフィルタリング（クエリでは絞り込めないためレスポンス側で判定）
             if ($item['Type'] !== $dataType->value()) {
+                continue;
+            }
+
+            // 価格区分のフィルタリング（priceClassification 指定時は基本一致するはずだが念のため検証）
+            if (isset($item['PriceCategory']) && $item['PriceCategory'] !== $priceCategory->responseLabel()) {
                 continue;
             }
 

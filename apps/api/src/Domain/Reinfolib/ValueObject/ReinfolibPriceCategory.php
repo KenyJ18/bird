@@ -8,12 +8,19 @@ use InvalidArgumentException;
 
 /**
  * Reinfolib価格区分Value Object
+ *
+ * XIT001 の `priceClassification` クエリパラメータに渡すコード。
+ * "01"=取引価格のみ, "02"=成約価格のみ（未指定は両方、本アプリでは使用しない）
  */
 final readonly class ReinfolibPriceCategory
 {
-    // 価格区分コード
-    public const TRANSACTION_PRICE = '1';  // 取引価格
-    public const CONTRACT_PRICE = '2';     // 成約価格
+    // 価格区分コード（priceClassification パラメータ値）
+    public const TRANSACTION_PRICE = '01';  // 取引価格
+    public const CONTRACT_PRICE = '02';     // 成約価格
+
+    // レスポンスの PriceCategory フィールドが取りうる値
+    private const RESPONSE_LABEL_TRANSACTION = '不動産取引価格情報';
+    private const RESPONSE_LABEL_CONTRACT = '成約価格情報';
 
     private const VALID_CODES = [
         self::TRANSACTION_PRICE,
@@ -78,5 +85,16 @@ final readonly class ReinfolibPriceCategory
         };
 
         return new \Domain\MunicipalityAmount\ValueObject\PriceCategory($value);
+    }
+
+    /**
+     * この価格区分に対応する、APIレスポンス PriceCategory フィールドの期待値
+     */
+    public function responseLabel(): string
+    {
+        return match ($this->value) {
+            self::TRANSACTION_PRICE => self::RESPONSE_LABEL_TRANSACTION,
+            self::CONTRACT_PRICE => self::RESPONSE_LABEL_CONTRACT,
+        };
     }
 }

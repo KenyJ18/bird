@@ -98,6 +98,35 @@ class EloquentMunicipalityAmountRepository implements MunicipalityAmountReposito
             ->delete();
     }
 
+    public function pruneHistory(int $keepLatestPeriods): array
+    {
+        // period は 'YYYY-QN'（N は1桁）形式のため、文字列の降順ソートが時系列の降順と一致する
+        $periodsToKeep = MunicipalityAmountModel::query()
+            ->select('period')
+            ->distinct()
+            ->orderByDesc('period')
+            ->limit($keepLatestPeriods)
+            ->pluck('period')
+            ->all();
+
+        $query = MunicipalityAmountModel::query();
+        if ($periodsToKeep !== []) {
+            $query->whereNotIn('period', $periodsToKeep);
+        }
+
+        $deletedPeriods = (clone $query)
+            ->select('period')
+            ->distinct()
+            ->pluck('period')
+            ->all();
+
+        if ($deletedPeriods !== []) {
+            $query->delete();
+        }
+
+        return $deletedPeriods;
+    }
+
     public function findWithGreyoutByTypeAndCategory(
         DataType $dataType,
         PriceCategory $priceCategory

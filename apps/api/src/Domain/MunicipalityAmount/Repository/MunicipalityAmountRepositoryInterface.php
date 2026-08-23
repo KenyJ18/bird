@@ -73,4 +73,11 @@ interface MunicipalityAmountRepositoryInterface
      * 期間で削除
      */
     public function deleteByPeriod(Period $period): void;
+
+    /**
+     * 履歴保持（設計書 §5.3）：直近N四半期のみ残し、それより古い四半期を削除する
+     *
+     * @return string[] 削除した period の一覧（削除がなければ空配列）
+     */
+    public function pruneHistory(int $keepLatestPeriods): array;
 }

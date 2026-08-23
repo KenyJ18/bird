@@ -32,7 +32,7 @@ class CheckReinfolibApiCommand extends Command
             $response = $client->get('https://www.reinfolib.mlit.go.jp/ex-api/external/XIT001', [
                 'query' => [
                     'year' => '2024',
-                    'period' => '1',
+                    'quarter' => '1',
                     'area' => '11',
                 ],
                 'headers' => [
