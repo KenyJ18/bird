@@ -377,12 +377,14 @@ crontab -e
 
 # 以下を追加
 * * * * * cd /home/[ユーザー名]/bird/apps/api && php artisan schedule:run >> /dev/null 2>&1
-
-# 四半期ごとのデータ更新（1月,4月,7月,10月の1日 午前2時）
-0 2 1 1,4,7,10 * cd /home/[ユーザー名]/bird/apps/api && php artisan reinfolib:import >> storage/logs/import.log 2>&1
 ```
 
 **必ず** `[ユーザー名]` を実際の値に置き換えてください！
+
+この1行だけで、市区町村金額データの更新検知ポーリング（週1回・月曜21:00 JST）と
+データ取込バッチが自動的に動きます。スケジュール定義は `apps/api/routes/console.php`
+にコード管理されており（`bird_design.md` §5.0・§9.1、`docs/design/PHASE_2_ITEM10_CRON_UPDATE.md`
+参照）、crontabに個別の四半期ジョブを追加する必要はありません。
 
 #### 7-2. Cron動作確認
 

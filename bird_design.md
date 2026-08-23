@@ -488,6 +488,8 @@ function classify(muniCode) {
 - **データベース**: MySQL 8.4.4（13テーブル作成済み、5件のテストデータ投入済み）
 - **PHP環境**: PHP 8.5.6（OPcache 有効）
 - **Cron設定**: 月次データ更新ジョブ（`0 0 1 * * cd ~/bird/apps/api && php artisan app:update-muni-amounts`）
+  → **2026-08-23 フェーズ2項目10で週次ポーリング方式に置き換え**（§9.3参照、本番crontabの
+  切替はREADME.md「Cron ジョブ確認」節の手順に沿って別途手動実施が必要）
 - **デプロイ日**: 2026年7月20日
 
 #### セキュリティ対策（2026年8月11日完了）
@@ -585,7 +587,12 @@ function classify(muniCode) {
   - `php artisan app:poll-muni-amounts-update` を新規実装
   - 現行スナップショット期間が1都3県揃っているか（`muni_amount` から導出）を判定し、
     未充足なら同一期間を穴埋め再取込、充足済みなら次四半期を軽量プローブして新規検知
-- [ ] Cron ジョブの更新（月次 → 週次ポーリング + 取込）
+- [x] Cron ジョブの更新（月次 → 週次ポーリング + 取込、完了。詳細:
+  `docs/design/PHASE_2_ITEM10_CRON_UPDATE.md`）:
+  - `apps/api/routes/console.php` に `Schedule::command('app:poll-muni-amounts-update')`
+    を追加（週1回・月曜21:00 JST、`withoutOverlapping`で多重実行防止）
+  - 本番サーバーのcrontabを月次直接実行から `* * * * * ... schedule:run` へ切替える
+    手順をREADME.mdに記載（**本番crontabの実切替はサーバー側で手動実施が必要**）
 
 #### フェーズ3: 検証・最適化
 - [ ] 取込ジョブの所要時間実測

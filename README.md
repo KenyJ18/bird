@@ -363,15 +363,42 @@ ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -r"
 ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -e"
 ```
 
-**現在の Cron ジョブ設定**:
+**旧 Cron ジョブ設定（月次・非推奨）**:
 ```
 0 0 1 * * cd ~/bird/apps/api && php artisan app:update-muni-amounts
 ```
 
+reinfolib の実際の更新は四半期ごと・不定日（固定カレンダーなし）のため、
+月次の直接実行では更新タイミングを捉えられない。フェーズ2 項目10（`bird_design.md` §5.0・§9.1、
+`docs/design/PHASE_2_ITEM10_CRON_UPDATE.md`）で、**週1回の更新検知ポーリング方式**に変更した。
+
+**新 Cron ジョブ設定（週次ポーリング・要切替）**:
+
+スケジュール定義はコード側（`apps/api/routes/console.php`）に移し、サーバーのcrontabは
+Laravelスケジューラー起動用の1行だけにする。
+
+```bash
+# 1️⃣ 旧ジョブを削除（crontab -e で該当行を削除、または crontab -r で全削除）
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -e"
+
+# 2️⃣ 以下の1行だけを登録する（毎分実行、Laravelスケジューラーが内部で頻度を判断する）
+* * * * * cd ~/bird/apps/api && php artisan schedule:run >> /dev/null 2>&1
+
+# 3️⃣ 登録内容を確認
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "crontab -l"
+
+# 4️⃣ スケジュール登録内容をアプリ側から確認（週1回・月曜21:00 JSTになっているか）
+ssh -i <YOUR_SSH_KEY_PATH> -p <SSH_PORT> <SSH_USER>@<SSH_HOST> "cd ~/bird/apps/api && php artisan schedule:list"
+```
+
 **説明**:
-- `0 0 1 * *` : 毎月1日の午前0時に実行
-- `cd ~/bird/apps/api` : バックエンドディレクトリに移動
-- `php artisan app:update-muni-amounts` : 市区町村価格データを自動更新
+- `* * * * * ... schedule:run` : 毎分Laravelスケジューラーを起動（実際の処理は下記の
+  週次スケジュールが「実行時刻になったときだけ」動く。空振りの分は何もしない）
+- `app:poll-muni-amounts-update` : 週1回（毎週月曜21:00 JST）実行され、1都3県に新四半期
+  データが公開されたか軽量プローブする。検知したときだけ内部で `app:update-muni-amounts`
+  （データ取込バッチ）を起動する
+- 上記の**手順1〜3はサーバー側で手動実行が必要**（このリポジトリのコード変更だけでは
+  本番サーバーのcrontabは自動的に切り替わらない）
 
 ---
 

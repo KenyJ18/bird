@@ -236,10 +236,12 @@ crontab -e
 ```cron
 # Laravel Scheduler（毎分実行）
 * * * * * cd /home/your_user/bird/apps/api && php artisan schedule:run >> /dev/null 2>&1
-
-# 四半期データ更新（1月,4月,7月,10月の1日 午前2時）
-0 2 1 1,4,7,10 * cd /home/your_user/bird/apps/api && php artisan reinfolib:import >> /dev/null 2>&1
 ```
+
+市区町村金額データの更新検知ポーリング（週1回・月曜21:00 JST）とデータ取込バッチは、
+上記のスケジューラー経由で自動実行される。個別にcronへ四半期ジョブを追加する必要はない
+（スケジュール定義は `apps/api/routes/console.php` を参照。詳細:
+`bird_design.md` §5.0・§9.1、`docs/design/PHASE_2_ITEM10_CRON_UPDATE.md`）。
 
 ### キューワーカー（オプション）
 
