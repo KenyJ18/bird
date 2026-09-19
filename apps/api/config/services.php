@@ -36,7 +36,13 @@ return [
     ],
 
     'reinfolib' => [
-        'api_key' => env('REINFOLIB_API_KEY'),
+        // 空文字をデフォルトにする。docker build 時は .env の中身が見えない
+        // （env_file はコンテナ実行時にのみ注入されるため）ため、null のままだと
+        // composer install の post-autoload-dump（package:discover）が
+        // ReinfolibApiClient::__construct(string $apiKey) の型エラーで
+        // ビルドの度に失敗する。実キー未設定時は reinfolib 側が
+        // 401/403 を返す形で実行時に気づける。
+        'api_key' => env('REINFOLIB_API_KEY', ''),
     ],
 
 ];

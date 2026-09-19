@@ -1,0 +1,19 @@
+# ホストの node_modules をビルドコンテキストに含めない
+# （pnpm がイメージ内で作るシンボリックリンク構造と、ホストの実ディレクトリが衝突するため）
+node_modules
+.next
+npm-debug.log
+.pnpm-store
+
+# 環境変数・機密情報
+.env
+.env.*
+
+# Git / OS
+.git
+.gitignore
+.DS_Store
+*.log
+
+# Storybook等のビルド成果物
+storybook-static

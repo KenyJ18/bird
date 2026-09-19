@@ -5,7 +5,7 @@
 # ==============================================
 # Stage 1: Base
 # ==============================================
-FROM php:8.3-cli-alpine AS base
+FROM php:8.5-cli-alpine AS base
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -18,6 +18,7 @@ RUN apk add --no-cache \
     oniguruma-dev \
     postgresql-dev \
     linux-headers \
+    brotli-dev \
     ${PHPIZE_DEPS}
 
 # Install PHP extensions
@@ -44,9 +45,6 @@ WORKDIR /var/www/html
 # ==============================================
 FROM base AS development
 
-# Install Swoole for Laravel Octane
-RUN pecl install swoole && docker-php-ext-enable swoole
-
 # Copy application files
 COPY . .
 
@@ -59,7 +57,10 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Expose port
 EXPOSE 8080
 
-CMD ["php", "artisan", "octane:start", "--server=swoole", "--host=0.0.0.0", "--port=8080"]
+# 本番（ConoHa WING等の共有ホスティング）はOctaneの常駐プロセスを動かせないため
+# 元々Octane非採用。laravel/octaneパッケージも未導入のため、ローカル開発も
+# 標準のLaravel開発サーバーで揃える（2026-09-12変更）
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8080"]
 
 # ==============================================
 # Stage 3: Production

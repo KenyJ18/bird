@@ -1,0 +1,23 @@
+# ホストの vendor をビルドコンテキストに含めない
+# （composer install はイメージ内で実行するため、ホスト側の成果物は不要かつ
+#   プラットフォーム差異の原因になる）
+vendor
+node_modules
+
+# Laravel の実行時生成物
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/framework/testing
+bootstrap/cache/*.php
+
+# 環境変数・機密情報
+.env
+.env.*
+
+# Git / OS
+.git
+.gitignore
+.DS_Store
+*.log
