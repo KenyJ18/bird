@@ -95,4 +95,4 @@ prerender-manifest.json
 SECURITY_AUDIT_REPORT.md
 
 # ローカル設計ドキュメント（git 管理外）
-docs/design/
+docs/
