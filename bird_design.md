@@ -605,12 +605,13 @@ function classify(muniCode) {
      NEXT_PUBLIC_API_BASE_URL=https://<YOUR_DOMAIN>/api
      ```
 
-3. **MapLibre 地図コンポーネントの実装**（完了：2026-09-22）
+3. **MapLibre 地図コンポーネントの実装・地図画面への統合**（完了：2026-09-22）
    - 実装場所: `frontend/src/components/MunicipalityMap/index.tsx`（独立した再利用可能コンポーネント）
-   - `EnterCheck`/`SearchResult`（Jotai連携・セレクタ実装＝フェーズ1項目6・8）はユーザーが並行して
-     作業中だったため、それらのファイルは変更せず**props経由でデータを受け取る疎結合設計**にした：
-     `amountsByMuniCode?: Map<muniCode, {tier, avgTradePrice, medianTradePrice, latestCount}>` を
-     渡すだけで塗り分け・ポップアップが機能する。省略時は全市区町村がグレーアウト（データなし）表示になる
+   - 初回実装時点では`EnterCheck`/`SearchResult`（Jotai連携・セレクタ実装＝フェーズ1項目6・8）は
+     ユーザーが並行して作業中だったため、それらのファイルは変更せず**props経由でデータを受け取る
+     疎結合設計**にした：`amountsByMuniCode?: Map<muniCode, {tier, avgTradePrice, medianTradePrice,
+     latestCount}>` を渡すだけで塗り分け・ポップアップが機能する。省略時は全市区町村がグレーアウト
+     （データなし）表示になる
    - 実装内容:
      - 背景地図: 地理院タイル（標準地図）をraster sourceとして表示、帰属表示（`地図：国土地理院`）を
        AttributionControlに自動表示
@@ -628,6 +629,29 @@ function classify(muniCode) {
    - 既知の技術的判断: MapLibreスタイル式の型（`@maplibre/maplibre-gl-style-spec`）は
      react-map-gl配下の非公開依存のため直接importせず、`fill-color`の値のみ`as any`で
      型を緩めている
+
+   **その後の統合作業（フェーズ1項目6を含む、完了：2026-09-22）**
+
+   ユーザーから「SearchResult/EnterCheckも修正して問題ない」との許可を得て、以下を実施し
+   実際に地図画面へ組み込んだ：
+
+   - **budget受け渡しのバグ発見・修正**：`Enter`（予算入力画面）の`onSubmit`が
+     `console.log`するだけで、budgetの値が実際にはどこにも渡っていなかったことが判明
+     （§7.1で確定していたJotai方式が未実装だった）。`frontend/src/atoms/budget.ts`に
+     `budgetAtom`（`atomWithStorage` + `createJSONStorage(() => sessionStorage)`、
+     SSR/静的書き出し時は`window`未定義のため安全にフォールバック）を新設し、
+     `Enter`→`EnterCheck`→`SearchResult`の3画面すべてをこのatom経由に統一
+   - `EnterCheck`・`SearchResult`いずれもbudget未設定時（別タブ・URL直打ち等）は
+     入力画面へリダイレクトするフォールバックを追加（§8注意点2・§7.2.1）
+   - `SearchResult`: 地図のプレースホルダを`MunicipalityMap`に置き換え、
+     `/api/muni/amounts`をSWRで取得し§7.2.1の`classify()`でtier判定。データ種類・
+     価格区分・統計指標は§7.2確定の初期値（宅地(土地と建物)／取引価格／平均価格）を
+     暫定固定値として使用（セレクタUI＝フェーズ1項目8は別タスクのまま未着手）
+   - `frontend/tests/enter-check-to-map.test.mjs`（ユーザーが実装したE2Eテスト）を
+     実装変更に合わせて更新（削除したプレースホルダの`role="img"`チェックを
+     `MunicipalityMap`使用チェックに変更、budgetクエリパラメータへの依存を解消）。
+     `package.json`の`test`スクリプトも未設定のスタブから`node --test`実行に変更
+   - 検証: TypeScript型チェック・`next build`・更新後のE2Eテストがすべて通過することを確認
 
 #### 優先度: 中（UI/UX の詳細）
 
@@ -693,7 +717,8 @@ function classify(muniCode) {
 #### フェーズ1: 環境準備（APIキー取得前でも可能）
 - [x] 市区町村境界データの取得・加工（完了：2026-09-22。国土数値情報N03、1都3県・島嶼部除外。
   詳細: §9.2項目1）
-- [ ] Jotai 導入・`budgetAtom`（`atomWithStorage`/sessionStorage）実装、EnterCheck/SearchResultの接続（2026-09-12方式確定、§7.1）
+- [x] Jotai 導入・`budgetAtom`（`atomWithStorage`/sessionStorage）実装、EnterCheck/SearchResultの接続
+  （完了：2026-09-22。Enterが`budget`を実際には渡していなかったバグも合わせて修正。詳細: §9.2項目3）
 - [x] MapLibre 地図コンポーネントの実装（完了：2026-09-22。背景地図・境界表示。詳細: §9.2項目3）
 - [ ] セレクタUI の実装（データ種類・価格区分・統計指標）
 - [x] 配色テーマの確定（アクセシビリティ検証、2026-09-12完了。§7.3参照）※実装（CSSトークン化等）は未着手
