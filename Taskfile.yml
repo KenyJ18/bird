@@ -1,0 +1,46 @@
+version: '3'
+
+vars:
+  API_DIR: apps/api
+
+tasks:
+  default:
+    desc: 利用可能なタスク一覧を表示
+    cmds:
+      - task --list
+
+  db:show:
+    desc: DB接続確認・テーブル一覧を表示（php artisan db:show）
+    dir: '{{.API_DIR}}'
+    cmds:
+      - php artisan db:show
+
+  db:table:
+    desc: '指定テーブルのカラム構造を表示（例: task db:table -- muni_amount）'
+    dir: '{{.API_DIR}}'
+    cmds:
+      - php artisan db:table {{.CLI_ARGS}}
+
+  migrate:status:
+    desc: マイグレーション適用状況を表示
+    dir: '{{.API_DIR}}'
+    cmds:
+      - php artisan migrate:status
+
+  reinfolib:check:
+    desc: Reinfolib API接続チェック（レスポンス構造確認）
+    dir: '{{.API_DIR}}'
+    cmds:
+      - php artisan reinfolib:check
+
+  test:
+    desc: PHPUnitテストを実行
+    dir: '{{.API_DIR}}'
+    cmds:
+      - ./vendor/bin/phpunit
+
+  artisan:
+    desc: '任意のartisanコマンドを実行（例: task artisan -- migrate:status）'
+    dir: '{{.API_DIR}}'
+    cmds:
+      - php artisan {{.CLI_ARGS}}
