@@ -24,7 +24,7 @@ use Infrastructure\Models\SnapshotMetaModel;
  *
  * 指定四半期について、対象3データ種類 × 2価格区分の組み合わせごとに
  * Reinfolib から1都3県の取引データを取得し、市区町村単位で平均・中央値・件数を
- * 集計して muni_amount に保存する。あわせて履歴保持（直近4四半期）と
+ * 集計して muni_amount に保存する。あわせて履歴保持（直近40四半期＝10年）と
  * スナップショット基準時刻（snapshot_meta）の更新を行う。
  *
  * 保存件数に関わらず途中で例外が発生した場合は呼び出し元（コマンド）で
@@ -44,8 +44,9 @@ final readonly class ImportMuniAmountsUseCase
         PriceCategory::CONTRACT_PRICE,
     ];
 
-    // 保持する四半期数（設計書 §5.3：1年 = 直近4四半期）
-    private const KEEP_LATEST_PERIODS = 4;
+    // 保持する四半期数（設計書 §5.3：10年 = 直近40四半期。取引件数が少ないため
+    // 1年分の履歴では傾向把握に不十分と判断し2026-09-22に4→40へ変更）
+    private const KEEP_LATEST_PERIODS = 40;
 
     // レート配慮：type × priceCategory の組ごとに間隔を空ける（設計書 §5.1）
     private const INTER_COMBINATION_WAIT_MICROSECONDS = 500_000;
