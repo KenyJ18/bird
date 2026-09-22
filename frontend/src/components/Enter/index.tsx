@@ -2,13 +2,20 @@ import { Stack, TextField, Button, Grid } from '@mui/material';
 import { useRouter } from 'next/router';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { useSetAtom } from 'jotai';
+import { budgetAtom } from '@/atoms/budget';
+
+type EnterFormValues = {
+    budget: string;
+};
 
 export const Enter: React.FC = () => {
-    const { register, handleSubmit, formState: { errors } } = useForm();
+    const { register, handleSubmit, formState: { errors } } = useForm<EnterFormValues>();
     const router = useRouter();
+    const setBudget = useSetAtom(budgetAtom);
 
-    const onSubmit = (data: any) => {
-        console.log('Submitted data:', data);
+    const onSubmit = (data: EnterFormValues) => {
+        setBudget(Number(data.budget));
         router.push('/enter-check');
     };
 

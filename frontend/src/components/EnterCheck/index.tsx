@@ -1,71 +1,76 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack, TextField, Button, Grid } from '@mui/material';
 import { useRouter } from 'next/router';
+import { useAtom } from 'jotai';
+import { budgetAtom } from '@/atoms/budget';
 
 export const EnterCheck: React.FC = () => {
     const router = useRouter();
-    const { budget } = router.query;
-    const budgetValue = budget ? parseFloat(budget as string) : 0;
+    const [budget, setBudget] = useAtom(budgetAtom);
 
-    const handleNext = () => {
-        // 次の画面に遷移（例: 物件検索画面など）
-        console.log('確定された予算:', budgetValue);
-        // router.push('/search'); // 次の画面のパスを指定
-        alert(`予算 ${budgetValue} 円で確定しました`);
+    // budget未設定（別タブ・URL直打ち等）→ 入力画面へ戻す（bird_design.md §8注意点2）
+    useEffect(() => {
+        if (budget == null) {
+            router.replace('/');
+        }
+    }, [budget, router]);
+
+    const budgetValue = budget ?? 0;
+
+    const handleNext = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBudget(budgetValue);
+        void router.push('/search-result');
     };
 
     const handleCancel = () => {
-        // 予算入力画面に戻る
-        router.push('/');
+        void router.push('/');
     };
 
     return (
-        <form>
+        <main>
             <header>
-                <div>
-                    <h1 className="title" style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'Meiryo' }}>予算確認画面</h1>
-                </div>
+                <h1 className="title" style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: 'Meiryo' }}>予算確認画面</h1>
             </header>
-            <body>
-                <div>
-                    <Stack direction="column" spacing={2}>
-                        <Grid container spacing={2}>
-                            <Grid size={6}>
-                                <TextField 
-                                    label="入力した予算" 
-                                    variant="outlined" 
-                                    disabled 
-                                    fullWidth 
-                                    value={budgetValue}
-                                />
-                            </Grid>
+            <form onSubmit={handleNext}>
+                <Stack direction="column" spacing={2}>
+                    <Grid container spacing={2}>
+                        <Grid size={6}>
+                            <TextField
+                                label="入力した予算"
+                                variant="outlined"
+                                fullWidth
+                                value={budgetValue}
+                                slotProps={{ htmlInput: { readOnly: true } }}
+                            />
                         </Grid>
-                        <Grid container spacing={2}>
-                            <Grid size={6}>
-                                <Button 
-                                    variant="contained" 
-                                    color="primary" 
-                                    onClick={handleNext}
-                                    fullWidth
-                                >
-                                    次へ
-                                </Button>
-                            </Grid>
-                            <Grid size={6}>
-                                <Button 
-                                    variant="contained" 
-                                    color="secondary" 
-                                    onClick={handleCancel}
-                                    fullWidth
-                                >
-                                    キャンセル
-                                </Button>
-                            </Grid>
+                    </Grid>
+                    <Grid container spacing={2}>
+                        <Grid size={6}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                type="submit"
+                                fullWidth
+                            >
+                                次へ
+                            </Button>
                         </Grid>
-                    </Stack>
-                </div>
-            </body>
-        </form>
+                        <Grid size={6}>
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                type="button"
+                                onClick={handleCancel}
+                                fullWidth
+                            >
+                                キャンセル
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Stack>
+            </form>
+        </main>
     );
 }
 

@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "data:municipalities": "python3 scripts/build-municipalities-geojson.py /tmp/municipalities_merged.geojson && npx geo2topo -q 1e6 municipalities=/tmp/municipalities_merged.geojson > public/data/municipalities.json && rm /tmp/municipalities_merged.geojson",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:reset": "docker compose down -v && docker compose up -d",
@@ -33,6 +33,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.7",
     "docker": "^1.0.0",
+    "jotai": "^3.0.0",
     "latest": "^0.2.0",
     "maplibre-gl": "^6.10.0",
     "mui": "^0.0.1",
@@ -41,7 +42,8 @@
     "react-hook-form": "^7.81.0",
     "react-map-gl": "^8.1.3",
     "react-router-dom": "^7.15.0",
-    "storybook": "^10.2.8"
+    "storybook": "^10.2.8",
+    "swr": "^2.5.1"
   },
   "devDependencies": {
     "@types/node": "^25.2.3",
