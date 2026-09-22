@@ -559,15 +559,36 @@ function classify(muniCode) {
 
 ### 9.2 未確定・要確認事項
 
+#### フェーズ3 残り項目（10〜12）: 完了（2026-09-22）
+
+| 項目 | ステータス | 検証内容 |
+| --- | --- | --- |
+| 10. エンドツーエンドテスト | 完了 | `frontend/tests/enter-check-to-map.test.mjs` で、EnterCheckの送信から`/search-result`（Map画面）への遷移契約、画面描画、アクセシブルな凡例を検証 |
+| 11. パフォーマンス検証 | 完了 | 地図画面を含むNext.js本番ビルドが成功。`/api/muni/amounts` は33,446行の合成データで239市区町村の応答形式を検証し、ウォームアップ後**2.281ms**（1秒未満の回帰ガード）を確認 |
+| 12. アクセシビリティ監査 | 完了 | 色だけに依存しない凡例、遷移後のフォーカス移動、ネイティブなキーボード操作、読み取り専用予算入力を実装・検証 |
+
 #### 優先度: 高（機能実装に必須）
 
-1. **市区町村境界データの準備**（ソース確定：2026-09-12）
-   - ソース: **国土数値情報「行政区域データ（N03）」を自前加工**（geolonia系は不採用。一次データとしての信頼性を優先）
-   - 必要な加工（未着手）:
-     - 1都3県（東京13・神奈川14・埼玉11・千葉12）への絞り込み
-     - 島嶼部9町村の除外（大島町13361〜小笠原村13421）
-     - TopoJSON への変換（軽量化）
-   - 保存場所: `frontend/public/data/municipalities.json`
+1. **市区町村境界データの準備**（完了：2026-09-22）
+   - ソース: **国土数値情報「行政区域データ（N03）」を自前加工**（geolonia系は不採用。一次データとしての信頼性を優先）。2020-01-01時点データ（`N03-20_*_200101`、ユーザーが事前ダウンロード済み）を使用
+   - 実施した加工:
+     - 1都3県（東京13・神奈川14・埼玉11・千葉12）への絞り込み（各県別GeoJSONを結合）
+     - 島嶼部9町村の除外（大島町13361〜小笠原村13421）→ 東京都は6,173地物中5,903地物（96%）が
+       この除外対象で、除外後は146地物・53コードに縮小
+     - プロパティの正規化：`N03_007`→`muniCode`（結合キー）、`N03_003`/`N03_004`から
+       `prefecture`/`designatedCity`/`name`/`fullName`を導出（政令指定都市の区は
+       「さいたま市西区」のように結合、郡名は表示上の慣例に合わせて非結合）
+     - TopoJSON への変換（`topojson-server`の`geo2topo -q 1e6`）：18MB→4.1MB。
+       幾何単純化（`topojson-simplify`）は閾値指定が絶対面積のためパラメータを変えても
+       同一出力になる不審な挙動が確認され、design docが元々想定していた「約200面規模なら
+       TopoJSON化だけで十分軽量」という前提とも整合したため採用せず、量子化のみとした
+   - 保存場所: `frontend/public/data/municipalities.json`（4,116,181バイト、3,040地物・242市区町村）
+   - 再現用スクリプト: `frontend/scripts/build-municipalities-geojson.py`
+     （`npm run data:municipalities` で再生成可能。国土数値情報のシェープファイル
+     ダウンロードが事前準備として必要、詳細はスクリプト冒頭のdocstring参照）
+   - 整合性検証: `topojson-client`で復元し、242市区町村すべて保持・島嶼部9町村は
+     正しく0件・無効な幾何0件を確認。実データ検証（§9.5.3）で使った5市区町村
+     （あきる野市・瑞穂町・日の出町・檜原村・奥多摩町）の名称・コードも正しく一致
 
 2. **環境変数の設定**
    - バックエンド `.env`:
@@ -583,6 +604,30 @@ function classify(muniCode) {
      ```bash
      NEXT_PUBLIC_API_BASE_URL=https://<YOUR_DOMAIN>/api
      ```
+
+3. **MapLibre 地図コンポーネントの実装**（完了：2026-09-22）
+   - 実装場所: `frontend/src/components/MunicipalityMap/index.tsx`（独立した再利用可能コンポーネント）
+   - `EnterCheck`/`SearchResult`（Jotai連携・セレクタ実装＝フェーズ1項目6・8）はユーザーが並行して
+     作業中だったため、それらのファイルは変更せず**props経由でデータを受け取る疎結合設計**にした：
+     `amountsByMuniCode?: Map<muniCode, {tier, avgTradePrice, medianTradePrice, latestCount}>` を
+     渡すだけで塗り分け・ポップアップが機能する。省略時は全市区町村がグレーアウト（データなし）表示になる
+   - 実装内容:
+     - 背景地図: 地理院タイル（標準地図）をraster sourceとして表示、帰属表示（`地図：国土地理院`）を
+       AttributionControlに自動表示
+     - 境界表示: 項目1で作成した`/data/municipalities.json`（TopoJSON）を`topojson-client`で
+       GeoJSONに変換して読み込み、`promoteId: 'muniCode'`でfeature-stateのキーに使用
+     - 塗り分け: §2.3の`fill-color` match式をそのまま実装（`feature-state`の`tier`駆動）
+     - 初期表示: 境界データのbboxを実行時に計算し`fitBounds`で1都3県にズーム（ハードコード座標に
+       依存しないため、境界データを再生成しても追従する）
+     - クリック時ポップアップ: 市区町村名＋§7.4形式の件数併記（「◯◯ ◯◯ 中央値 ◯◯円（取引◯件）」）
+   - 導入パッケージ: `react-map-gl`（v8.1.3）、`maplibre-gl`（v6.10.0）、`topojson-server`/
+     `topojson-client`（項目1で導入済み）、`@types/topojson-client`・`@types/topojson-specification`
+   - 検証: TypeScript型チェック・`next build`（静的書き出し含む）が成功することを確認。
+     一時プレビューページ（サンプルデータ付き、確認後削除）でSSR出力の構造と本番ビルドの成功を確認。
+     ブラウザツールが利用できない環境のため、**実際のWebGL描画の目視確認は未実施**
+   - 既知の技術的判断: MapLibreスタイル式の型（`@maplibre/maplibre-gl-style-spec`）は
+     react-map-gl配下の非公開依存のため直接importせず、`fill-color`の値のみ`as any`で
+     型を緩めている
 
 #### 優先度: 中（UI/UX の詳細）
 
@@ -622,12 +667,34 @@ function classify(muniCode) {
      （宅地(土地)／成約価格、詳細は §9.5.2）も実装上は単に該当行が作られないだけで、
      既存のグレーアウト設計がそのまま適用できることを確認
 
+8. **全期間0件市区町村の網羅確認**（確認完了：2026-09-22）
+   - 地図境界データの対象242市区町村（島嶼部9町村を除外）と、ローカルSQLiteの40四半期・
+     33,446行の `muni_amount` をコードで突合。**境界データに存在してDBに一度も現れない
+     市区町村は0件**であり、真に「全期間0件」の実例は見つからなかった
+   - DB・境界データとも対象数は242で一致した（当初の約200面／239面という概数ではなく、
+     現在の加工済み地図データを正とする）
+   - 利用可能な組み合わせは5通りで、`宅地(土地)／成約価格` は40四半期全体で取引データが
+     0行だった。これは特定市区町村の全期間0件ではなく、データ種類・価格区分そのものの
+     提供実績がないためである
+
+9. **サンドボックスによる恒久的な機密保護**（設定準備完了：2026-09-22）
+   - `scripts/configure-local-secret-sandbox.sh` が、macOS Keychainの
+     `bird.reinfolib-api-key` からOS環境変数 `REINFOLIB_API_KEY` をロードするzsh設定と、
+     Claude Codeのユーザー設定に `sandbox.credentials.envVars` の `mask`・
+     `injectHosts: ["www.reinfolib.mlit.go.jp"]` を安全にマージする
+   - Docker ComposeのAPI・queue・schedulerにも `REINFOLIB_API_KEY` をホスト環境から
+     明示的に受け渡す。実キーはスクリプト・リポジトリに保存しない
+   - Keychainへの実キー登録とローカル `.env` からのキー削除は、値をAIセッションに渡さない
+     ために開発者が手動で実施する必要がある（手順は
+     `docs/design/secretGuardRules.md` §8を参照）
+
 ### 9.3 次のアクションアイテム
 
 #### フェーズ1: 環境準備（APIキー取得前でも可能）
-- [ ] 市区町村境界データの取得・加工（国土数値情報N03、1都3県・島嶼部除外、2026-09-12ソース確定）
+- [x] 市区町村境界データの取得・加工（完了：2026-09-22。国土数値情報N03、1都3県・島嶼部除外。
+  詳細: §9.2項目1）
 - [ ] Jotai 導入・`budgetAtom`（`atomWithStorage`/sessionStorage）実装、EnterCheck/SearchResultの接続（2026-09-12方式確定、§7.1）
-- [ ] MapLibre 地図コンポーネントの実装（背景地図・境界表示）
+- [x] MapLibre 地図コンポーネントの実装（完了：2026-09-22。背景地図・境界表示。詳細: §9.2項目3）
 - [ ] セレクタUI の実装（データ種類・価格区分・統計指標）
 - [x] 配色テーマの確定（アクセシビリティ検証、2026-09-12完了。§7.3参照）※実装（CSSトークン化等）は未着手
 - [ ] フッターの規約表示実装（出典・加工クレジット・免責文）
@@ -710,7 +777,7 @@ function classify(muniCode) {
 │  Read ツールによる .env 読み込みを宣言的にブロック          │
 │  → Claude Code が実行前に拒否（経路A対策）                  │
 ├─────────────────────────────────────────────────────────────┤
-│  Layer B: PreToolUse hook (.claude/hooks/secret-guard.sh)   │
+│  Layer B: PreToolUse hook（Claude Code / Copilot共通）      │
 │  Bash ツール経由の間接アクセスをスクリプトで検査・遮断      │
 │  → cat .env / printenv / grep .env / tinker env()          │
 │  （経路C対策）                                              │
@@ -726,6 +793,8 @@ function classify(muniCode) {
 | --- | --- |
 | `.claude/settings.json` | `permissions.deny` で `.env` / `.env.local` 等への `Read` をブロック。`PreToolUse` フックを登録 |
 | `.claude/hooks/secret-guard.sh` | Bash ツール経由の `.env` 直接表示・`grep`・全環境変数ダンプ・`tinker`経由の`env()`/`config()`間接アクセス・インタプリタのワンライナー経由アクセスをブロックし `{"decision":"block"}` を返す（2026-09-21改訂、詳細: §9.5・`docs/design/secretGuardRules.md`） |
+| `.claude/hooks/copilot-secret-guard.sh` | 共通の判定スクリプトの結果を、Copilot `preToolUse` が解釈する `permissionDecision: "deny"` 形式へ変換する |
+| `.github/hooks/secret-guard.json` | Copilot CLI／cloud agentの `PreToolUse` に上記ラッパーを登録し、Claude Codeと同じ危険コマンドを実行前に拒否する。設定変更後はCopilot CLIの再起動とリポジトリフックの信頼確認が必要 |
 | `~/.zshrc`（グローバル） | `preexec` フックで `claude` / `gh copilot` 起動前に機密ファイルの存在を警告 |
 | `.github/workflows/deploy.yml` | `REINFOLIB_API_KEY` を GitHub Secrets からSSH経由でサーバーの `.env` に書き込み（`chmod 600` + `config:cache` 自動実行） |
 
