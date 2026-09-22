@@ -19,6 +19,7 @@ services:
       - APP_ENV=local
       - DB_HOST=db
       - REDIS_HOST=redis
+      - REINFOLIB_API_KEY
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +47,7 @@ services:
       - APP_ENV=local
       - DB_HOST=db
       - REDIS_HOST=redis
+      - REINFOLIB_API_KEY
     depends_on:
       - api
       - redis
@@ -71,6 +73,7 @@ services:
       - APP_ENV=local
       - DB_HOST=db
       - REDIS_HOST=redis
+      - REINFOLIB_API_KEY
     depends_on:
       - api
     networks:
