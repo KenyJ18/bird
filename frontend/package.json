@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "data:municipalities": "python3 scripts/build-municipalities-geojson.py /tmp/municipalities_merged.geojson && npx geo2topo -q 1e6 municipalities=/tmp/municipalities_merged.geojson > public/data/municipalities.json && rm /tmp/municipalities_merged.geojson",
+    "postinstall": "node scripts/sync-maplibre-worker.mjs",
     "test": "node --test",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

@@ -653,6 +653,53 @@ function classify(muniCode) {
      `package.json`の`test`スクリプトも未設定のスタブから`node --test`実行に変更
    - 検証: TypeScript型チェック・`next build`・更新後のE2Eテストがすべて通過することを確認
 
+   **セレクタUI実装・WebGL描画の目視確認（完了：2026-10-03）**
+
+   フェーズ1項目8（セレクタUI）の実装と、ブラウザツール未使用のまま残っていたWebGL描画の
+   目視確認を実施した。
+
+   - **セレクタUI実装**：`SearchResult`に§8.6のレイアウト仕様通り、データ種類／価格情報区分／
+     統計指標の3セレクタと「条件反映」ボタンを追加（§7.2のコード順・初期値に準拠）。
+     セレクタの選択値（draft）と実際に地図へ反映される値（applied）を分離し、
+     「条件反映」を押すまでハイライトが変わらない仕様（§8.6）を実装
+   - **目視確認環境の構築**：Playwright（headless Chromium）をローカルに導入し、
+     開発サーバー・静的書き出し出力の両方で実際にページを操作・スクリーンショット確認できる
+     環境を用意した（ブラウザツールが使えない制約を解消）
+   - **目視確認で発見・修正した不具合（4件）**：
+     1. `setFeatureState`が`"source 'municipalities' does not exist"`エラーを
+        3,040件分（全市区町村×α）連続でスローしていた。`<Source>`がmaplibre内部スタイルへ
+        実際に登録される前にfeature-stateを設定しようとしていたレース条件。
+        `onSourceData`イベントでソース登録完了を検知してから実行するよう修正
+     2. `mapStyle`をJSXインラインで渡していたため毎レンダーで新しいオブジェクト参照になり、
+        react-map-glが再レンダーのたびに`setStyle()`し直していた。モジュールスコープの
+        定数に固定して解消
+     3. `fitBounds`・`setFeatureState`の実行を地図全体の`'load'`イベント（＝初期ビューポートの
+        背景ラスタタイルが**全て**読み込み終わるまで発火しない）に依存させていたため、
+        タイル読み込みが遅いと境界表示・初期ズームが不必要に遅延する設計になっていた。
+        本来必要な条件（境界データ取得済み・GeoJSONソース登録完了）のみに依存するよう整理
+     4. **（最重要）市区町村境界が一切描画されない不具合**：GeoJSONソースの内部タイル化処理が
+        永久に完了しない根本原因を特定。maplibre-glは自身のWorkerスクリプトを
+        `new URL('./maplibre-gl-worker.mjs', import.meta.url)`で解決するが、Turbopackは
+        このファイル自体はコピー・ハッシュ化して参照を書き換える一方、そのファイル内部が
+        さらに静的importする`./maplibre-gl-shared.mjs`への相対参照までは書き換えない。
+        その結果、Worker内でこの内部importが404し、Workerのモジュール評価が失敗、
+        タイル化リクエストへの応答が永久に来なくなっていた（`next dev`・本番ビルド
+        〈静的エクスポート〉の両方で再現、Turbopackのアセットパイプラインの既知の穴であり
+        アプリコードの設定ミスではないことを確認）。
+        対策として、`maplibre-gl-worker.mjs`・`maplibre-gl-shared.mjs`の2ファイルを
+        Turbopackの変換を受けない`frontend/public/maplibre/`にそのまま自前配置し、
+        `maplibregl.setWorkerUrl()`で明示的にこちらを使わせるよう修正
+        （同期スクリプト: `frontend/scripts/sync-maplibre-worker.mjs`、
+        `package.json`の`postinstall`で`maplibre-gl`アップグレード時も自動再同期）
+   - 検証: 上記修正後、`next dev`・静的エクスポート出力の両方で実際に市区町村境界線・
+     塗り分け（配色含む）がPlaywright経由のスクリーンショットで視認できることを確認。
+     市区町村クリックでのポップアップ表示（§7.4）も正常動作を確認
+   - 検証: TypeScript型チェック・`next build`・既存E2Eテスト（`npm test`）がすべて通過
+   - 参考（今回のスコープ外、別タスクとして整理を推奨）：リポジトリ直下に`pnpm-lock.yaml`、
+     `frontend`配下に`package-lock.json`が並存しており、Next.jsのビルドログが複数lockfile
+     検出を警告している。調査の結果、`frontend`はpnpmワークスペースのメンバーではなく
+     node_modulesの汚染は起きていないため実害はないが、紛らわしいため整理が望ましい
+
 #### 優先度: 中（UI/UX の詳細）
 
 4. **ハイライト色の具体的な配色値**（確定：2026-09-12、§7.3）
@@ -720,7 +767,9 @@ function classify(muniCode) {
 - [x] Jotai 導入・`budgetAtom`（`atomWithStorage`/sessionStorage）実装、EnterCheck/SearchResultの接続
   （完了：2026-09-22。Enterが`budget`を実際には渡していなかったバグも合わせて修正。詳細: §9.2項目3）
 - [x] MapLibre 地図コンポーネントの実装（完了：2026-09-22。背景地図・境界表示。詳細: §9.2項目3）
-- [ ] セレクタUI の実装（データ種類・価格区分・統計指標）
+- [x] セレクタUI の実装（データ種類・価格区分・統計指標、完了：2026-10-03。
+  WebGL描画の目視確認と、その過程で発見した市区町村境界未描画等4件の不具合修正も合わせて実施。
+  詳細: §9.2項目3）
 - [x] 配色テーマの確定（アクセシビリティ検証、2026-09-12完了。§7.3参照）※実装（CSSトークン化等）は未着手
 - [ ] フッターの規約表示実装（出典・加工クレジット・免責文）
 

@@ -1,9 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Layer, MapRef, Popup, Source } from 'react-map-gl/maplibre';
-import type { MapLayerMouseEvent } from 'react-map-gl/maplibre';
+import type { MapLayerMouseEvent, MapSourceDataEvent } from 'react-map-gl/maplibre';
+import { setWorkerUrl } from 'maplibre-gl';
 import * as topojson from 'topojson-client';
 import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+// maplibre-glはデフォルトで自身のWorkerスクリプトを `new URL('./maplibre-gl-worker.mjs',
+// import.meta.url)` で解決するが、Turbopackはコピーしたそのファイル内部がさらに相対importする
+// `./maplibre-gl-shared.mjs` までは書き換えない。結果、Worker内でその import が404し、
+// タイル化処理（境界データの塗り分け）が永久に完了しなくなる。Turbopackの変換を受けない
+// public/ 配下に自前配置したコピーを明示的に使わせることで回避する
+// （同期: scripts/sync-maplibre-worker.mjs、package.json の postinstall で自動実行）。
+if (typeof window !== 'undefined') {
+    setWorkerUrl('/maplibre/maplibre-gl-worker.mjs');
+}
 
 /**
  * 市区町村ごとのハイライト判定結果（bird_design.md §7.2.1 classify() の出力）。
@@ -68,6 +79,11 @@ const GSI_ATTRIBUTION =
 // フォールバック用の初期表示位置（1都3県の概略中心・§2.2 fitBoundsが効くまでの間だけ使う）
 const INITIAL_VIEW_STATE = { longitude: 139.8, latitude: 35.55, zoom: 8 };
 
+// 空のベーススタイル。JSXのインライン literal だと毎レンダーで参照が変わり、react-map-gl が
+// 再レンダーのたびに setStyle() し直してしまう（fitBounds後のカメラ位置が巻き戻る原因になる）ため、
+// モジュールスコープの定数として固定する。
+const EMPTY_MAP_STYLE = { version: 8 as const, sources: {}, layers: [] };
+
 function formatYen(value: number | null): string {
     if (value == null) return '不明';
     return `${value.toLocaleString('ja-JP')}円`;
@@ -82,7 +98,12 @@ export const MunicipalityMap: React.FC<MunicipalityMapProps> = ({
 }) => {
     const mapRef = useRef<MapRef | null>(null);
     const [geojson, setGeojson] = useState<FeatureCollection<Geometry, MunicipalityProperties> | null>(null);
-    const [mapLoaded, setMapLoaded] = useState(false);
+    // <Source>がmaplibreの内部スタイルへ実際に登録されるのはReactのコミット後（非同期）のため、
+    // geojsonだけを見てsetFeatureStateすると "source does not exist" で失敗する。
+    // sourcedataイベントでソース登録完了を検知してから使う。
+    // なお地図全体の 'load'（= 初期ビューポートの背景ラスタタイルが全て読み込み終わるまで発火しない）
+    // には依存させない。背景タイルの読み込みが遅い／失敗しても境界の表示・塗り分けには無関係のため。
+    const [sourceReady, setSourceReady] = useState(false);
     const [popupInfo, setPopupInfo] = useState<{
         longitude: number;
         latitude: number;
@@ -119,9 +140,9 @@ export const MunicipalityMap: React.FC<MunicipalityMapProps> = ({
         };
     }, []);
 
-    // 境界データ・地図の両方が準備できたら1都3県の範囲にフィットする
+    // 境界データが準備できたら1都3県の範囲にフィットする
     useEffect(() => {
-        if (!mapLoaded || !geojson || !mapRef.current) return;
+        if (!geojson || !mapRef.current) return;
 
         let minLng = Infinity;
         let minLat = Infinity;
@@ -158,11 +179,11 @@ export const MunicipalityMap: React.FC<MunicipalityMapProps> = ({
                 { padding: 24, duration: 0 }
             );
         }
-    }, [mapLoaded, geojson]);
+    }, [geojson]);
 
     // 判定結果（tier）を feature-state に反映する。amountsByMuniCode省略時は全て greyout 相当（fill-colorのデフォルト）
     useEffect(() => {
-        if (!mapLoaded || !geojson || !mapRef.current) return;
+        if (!geojson || !sourceReady || !mapRef.current) return;
 
         const seen = new Set<string>();
         for (const feature of geojson.features) {
@@ -176,9 +197,18 @@ export const MunicipalityMap: React.FC<MunicipalityMapProps> = ({
                 { tier: entry?.tier ?? null }
             );
         }
-    }, [mapLoaded, geojson, amountsByMuniCode]);
+    }, [geojson, sourceReady, amountsByMuniCode]);
 
-    const handleLoad = useCallback(() => setMapLoaded(true), []);
+    // geojsonが差し替わったら、新しいSourceの登録完了を待ち直す
+    useEffect(() => {
+        setSourceReady(false);
+    }, [geojson]);
+
+    const handleSourceData = useCallback((event: MapSourceDataEvent) => {
+        if (event.sourceId === SOURCE_ID && event.isSourceLoaded && mapRef.current?.getSource(SOURCE_ID)) {
+            setSourceReady(true);
+        }
+    }, []);
 
     const handleClick = useCallback((event: MapLayerMouseEvent) => {
         const feature = event.features?.[0] as Feature<Geometry, MunicipalityProperties> | undefined;
@@ -214,10 +244,10 @@ export const MunicipalityMap: React.FC<MunicipalityMapProps> = ({
             <Map
                 ref={mapRef}
                 initialViewState={INITIAL_VIEW_STATE}
-                mapStyle={{ version: 8, sources: {}, layers: [] }}
+                mapStyle={EMPTY_MAP_STYLE}
                 interactiveLayerIds={[FILL_LAYER_ID]}
-                onLoad={handleLoad}
                 onClick={handleClick}
+                onSourceData={handleSourceData}
                 attributionControl={{ compact: true }}
             >
                 <Source

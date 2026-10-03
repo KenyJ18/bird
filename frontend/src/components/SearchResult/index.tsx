@@ -1,7 +1,8 @@
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import useSWR from 'swr';
+import { MenuItem, Stack, TextField } from '@mui/material';
 import { budgetAtom } from '@/atoms/budget';
 import MunicipalityMap, { MuniAmountEntry, MuniTier } from '@/components/MunicipalityMap';
 
@@ -13,10 +14,14 @@ const legendItems = [
     { color: '#898781', label: '全期間の取引なし' },
 ];
 
-// bird_design.md §7.2 確定の初期値（セレクタUI実装（フェーズ1項目8）までの暫定固定値）
-const DEFAULT_TYPE = '宅地(土地と建物)';
-const DEFAULT_PRICE_CATEGORY = '取引価格';
-const DEFAULT_STAT_LABEL = '平均価格';
+// bird_design.md §7.2 確定のセレクタ選択肢（コード昇順、初期値は先頭）
+const TYPE_OPTIONS = ['宅地(土地)', '宅地(土地と建物)', '中古マンション等'];
+const PRICE_CATEGORY_OPTIONS = ['取引価格', '成約価格'];
+const STAT_OPTIONS = ['平均価格', '中央値'];
+
+const DEFAULT_TYPE = TYPE_OPTIONS[1];
+const DEFAULT_PRICE_CATEGORY = PRICE_CATEGORY_OPTIONS[0];
+const DEFAULT_STAT_LABEL = STAT_OPTIONS[0];
 
 // bird_design.md §7.2.1: 予算+1000万円までは許容（アンバー表示）
 const OVER = 10_000_000;
@@ -51,6 +56,22 @@ export const SearchResult: React.FC = () => {
     const mainRef = useRef<HTMLElement>(null);
     const budget = useAtomValue(budgetAtom);
 
+    // セレクタの選択中の値（draft）と、「条件反映」押下で地図に反映される値（applied）を分ける
+    // （bird_design.md §8.6「条件反映を押すまで地図のハイライトは変わらない」）
+    const [typeDraft, setTypeDraft] = useState(DEFAULT_TYPE);
+    const [priceCategoryDraft, setPriceCategoryDraft] = useState(DEFAULT_PRICE_CATEGORY);
+    const [statDraft, setStatDraft] = useState(DEFAULT_STAT_LABEL);
+
+    const [appliedType, setAppliedType] = useState(DEFAULT_TYPE);
+    const [appliedPriceCategory, setAppliedPriceCategory] = useState(DEFAULT_PRICE_CATEGORY);
+    const [appliedStat, setAppliedStat] = useState(DEFAULT_STAT_LABEL);
+
+    const handleApply = () => {
+        setAppliedType(typeDraft);
+        setAppliedPriceCategory(priceCategoryDraft);
+        setAppliedStat(statDraft);
+    };
+
     // budget未設定（別タブ・URL直打ち等）→ 入力画面へ戻す（bird_design.md §7.2.1）
     useEffect(() => {
         if (budget == null) {
@@ -59,7 +80,7 @@ export const SearchResult: React.FC = () => {
     }, [budget, router]);
 
     const { data } = useSWR<MuniAmountApiRow[]>(
-        `${API_BASE_URL}/muni/amounts?type=${encodeURIComponent(DEFAULT_TYPE)}&priceCategory=${encodeURIComponent(DEFAULT_PRICE_CATEGORY)}`,
+        `${API_BASE_URL}/muni/amounts?type=${encodeURIComponent(appliedType)}&priceCategory=${encodeURIComponent(appliedPriceCategory)}`,
         fetcher
     );
 
@@ -70,7 +91,7 @@ export const SearchResult: React.FC = () => {
 
         data.forEach((row) => {
             result.set(row.muniCode, {
-                tier: classify(row, budget, DEFAULT_STAT_LABEL),
+                tier: classify(row, budget, appliedStat),
                 avgTradePrice: row.avgTradePrice,
                 medianTradePrice: row.medianTradePrice,
                 latestCount: row.latestCount,
@@ -78,7 +99,7 @@ export const SearchResult: React.FC = () => {
         });
 
         return result;
-    }, [data, budget]);
+    }, [data, budget, appliedStat]);
 
     useEffect(() => {
         mainRef.current?.focus();
@@ -89,13 +110,59 @@ export const SearchResult: React.FC = () => {
             <header>
                 <h1>地図画面</h1>
             </header>
+            <section aria-labelledby="condition-heading">
+                <h2 id="condition-heading">検索条件</h2>
+                <Stack spacing={2}>
+                    <TextField
+                        label="予算"
+                        variant="outlined"
+                        value={budget ?? ''}
+                        slotProps={{ htmlInput: { readOnly: true } }}
+                    />
+                    <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                        <TextField
+                            select
+                            label="データ種類"
+                            value={typeDraft}
+                            onChange={(event) => setTypeDraft(event.target.value)}
+                        >
+                            {TYPE_OPTIONS.map((option) => (
+                                <MenuItem key={option} value={option}>{option}</MenuItem>
+                            ))}
+                        </TextField>
+                        <TextField
+                            select
+                            label="価格情報区分"
+                            value={priceCategoryDraft}
+                            onChange={(event) => setPriceCategoryDraft(event.target.value)}
+                        >
+                            {PRICE_CATEGORY_OPTIONS.map((option) => (
+                                <MenuItem key={option} value={option}>{option}</MenuItem>
+                            ))}
+                        </TextField>
+                        <TextField
+                            select
+                            label="統計指標"
+                            value={statDraft}
+                            onChange={(event) => setStatDraft(event.target.value)}
+                        >
+                            {STAT_OPTIONS.map((option) => (
+                                <MenuItem key={option} value={option}>{option}</MenuItem>
+                            ))}
+                        </TextField>
+                        <button type="button" onClick={handleApply}>
+                            条件反映
+                        </button>
+                    </Stack>
+                </Stack>
+            </section>
             <section aria-labelledby="map-heading">
                 <h2 id="map-heading">市区町村の取引価格地図</h2>
                 <MunicipalityMap
                     amountsByMuniCode={amountsByMuniCode}
-                    dataTypeLabel={DEFAULT_TYPE}
-                    priceCategoryLabel={DEFAULT_PRICE_CATEGORY}
-                    statLabel={DEFAULT_STAT_LABEL}
+                    dataTypeLabel={appliedType}
+                    priceCategoryLabel={appliedPriceCategory}
+                    statLabel={appliedStat}
                 />
             </section>
             <section aria-labelledby="legend-heading">
