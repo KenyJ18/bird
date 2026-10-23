@@ -771,7 +771,11 @@ function classify(muniCode) {
   WebGL描画の目視確認と、その過程で発見した市区町村境界未描画等4件の不具合修正も合わせて実施。
   詳細: §9.2項目3）
 - [x] 配色テーマの確定（アクセシビリティ検証、2026-09-12完了。§7.3参照）※実装（CSSトークン化等）は未着手
-- [ ] フッターの規約表示実装（出典・加工クレジット・免責文）
+- [x] フッターの規約表示実装（出典・加工クレジット・免責文、完了：2026-10-10。
+  `frontend/src/components/SearchResult/index.tsx`に`<footer>`を追加し、
+  `/api/muni/snapshot-meta`から基準時刻・対象四半期を取得して表示（データなし時は非表示）、
+  出典・加工クレジット・免責文（§8.5義務#1〜#3・#8相当）を固定文言で表示。
+  詳細: §8.5・§8.6）
 
 #### フェーズ2: API統合（APIキー取得後）
 - [x] reinfolib API キーの利用申請・取得（完了）
@@ -796,9 +800,17 @@ function classify(muniCode) {
     手順をREADME.mdに記載（**本番crontabの実切替はサーバー側で手動実施が必要**）
 
 #### フェーズ2 完了時点の未実施事項（要対応・手動作業）
-- [ ] **本番サーバー（ConoHa WING）のcrontab切替**：旧・月次直接実行ジョブを削除し、
-  `* * * * * ... schedule:run` の1行に置き換える（README.md「Cron ジョブ確認」節の手順。
-  本エージェントは本番SSHアクセスを持たないため未実施）
+- [x] **本番サーバー（ConoHa WING）のcrontab切替**（完了：2026-10-10、ユーザーがSSH経由で実施）：
+  - 前提作業として、本番コード自体が2026年7月20日デプロイ時点のまま更新されておらず
+    （`.github/workflows/deploy.yml`は`.env`書き込み・`config:cache`のみでアプリコードの
+    転送は行わないことが判明）、`php artisan schedule:list`が
+    `No scheduled tasks have been defined.`になる状態だった。`rsync`でコードを転送
+    （`.env`・`vendor`・`bootstrap/cache`等は上書き事故防止のため除外）→サーバー側で
+    `composer install --no-dev`・`php artisan migrate --force`・`config:clear`+`config:cache`を
+    実行し、`schedule:list`で`app:poll-muni-amounts-update`の週次スケジュール
+    （表示は`0 12 * * 1`=UTC、JST変換で21:00月曜と一致）を確認できたことを確認した上で切替に進んだ
+  - 旧・月次直接実行ジョブを削除し、`* * * * * cd ~/bird/apps/api && php artisan schedule:run >> /dev/null 2>&1`
+    の1行に置き換え。`crontab -l`で新1行のみになっていることを確認済み（README.md「Cron ジョブ確認」節の手順）
 - [x] 実Reinfolib APIキーでの疎通確認・実データ取込検証（完了：2026-09-22）：
   `reinfolib:check`（接続確認）、`app:update-muni-amounts`（実データ取込・40四半期分の
   バックフィルを含む、§9.6.2参照）、`app:poll-muni-amounts-update`（更新検知ポーリング、
@@ -806,9 +818,16 @@ function classify(muniCode) {
   正常動作を確認（詳細: §9.5・§9.6）
   - 補足: このテストで使用した実キーは2026-09-21のAIセッション内漏洩事故（§9.4参照）で
     露出したものであり、再発行依頼済みだが2026-09-22時点で `apps/api/.env` はまだ
-    切り替わっておらず、引き続き旧キー（漏洩済み）のまま利用している。新キー確定後は
-    速やかに `.env` と GitHub Secrets を更新すること（本番への反映は新キー確定後に
-    行う、§9.7参照）
+    切り替わっておらず、引き続き旧キー（漏洩済み）のまま利用していた。
+  - **新APIキーへの切替・疎通再確認（完了：2026-10-10）**：ルート`.env`（Docker Compose用、
+    `docker-compose.yml`の`env_file`経由で`db`/`redis`等のコンテナ内部ホスト名を使う構成）と
+    `apps/api/.env`（ローカル直接`php artisan`実行用、`DB_CONNECTION=sqlite`・
+    `REDIS_HOST=127.0.0.1`の構成）はDB/Redisの接続先が本質的に異なるため統合不可と判断し、
+    新キーを両方に個別反映。`docker compose run api php artisan reinfolib:check`、
+    ローカル直接`php artisan reinfolib:check`のいずれも埼玉県2024-Q1で5,734件取得・
+    HTTPステータス200を確認（キー値自体は一度もAIセッションに表示せず、長さ・空白混入の
+    有無のみを一時診断コマンドで検証）。GitHub Secretsの更新はユーザーが別途実施予定
+    （本番への反映は新キー確定後に行う、§9.7参照）
 
 #### フェーズ3: 検証・最適化
 - [x] 取込ジョブの所要時間実測（完了：2026-09-22。43.9秒/四半期。詳細: §9.2項目6・§9.5.1）
@@ -1061,7 +1080,7 @@ reinfolib APIの`quarter`は暦年ベース（1月始まり）であり、年度
 - [ ] **新APIキーへの切替**：2026-09-21の漏洩事故（§9.4）を受けて再発行依頼済みだが、
   2026-09-22時点で `apps/api/.env`（ローカル）はまだ旧キー（漏洩済み）のまま。
   新キー確定後、ローカル`.env`とGitHub Secrets（`REINFOLIB_API_KEY`）の両方を更新すること
-- [ ] **本番crontab切替**（§9.3参照、SSHアクセスが必要なため本エージェントでは実施不可）
+- [x] **本番crontab切替**（完了：2026-10-10。詳細: §9.3「フェーズ2 完了時点の未実施事項」）
 - [ ] **本番DBへの10年分バックフィル**：新キー確定・crontab切替後、本番で
   `php artisan app:backfill-muni-amounts --periods=40` を実行し、ローカルと同様に
   10年分の履歴を投入する。**漏洩済みの旧キーで本番に反映することは避けること**

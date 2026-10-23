@@ -33,12 +33,37 @@ type MuniAmountApiRow = {
     latestCount: number;
 };
 
+type SnapshotMetaApiResponse = {
+    period: string;
+    snapshotAt: string;
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
 
 const fetcher = (url: string) => fetch(url).then((res) => {
     if (!res.ok) throw new Error(`API取得に失敗しました: HTTP ${res.status}`);
     return res.json() as Promise<MuniAmountApiRow[]>;
 });
+
+// 未取込（データなし）時は404を返す仕様（bird_design.md §6.2）なのでエラーにはしない
+const snapshotMetaFetcher = (url: string) => fetch(url).then((res) => {
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`API取得に失敗しました: HTTP ${res.status}`);
+    return res.json() as Promise<SnapshotMetaApiResponse>;
+});
+
+const snapshotDateFormatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+});
+
+function formatSnapshotAt(snapshotAt: string): string {
+    return snapshotDateFormatter.format(new Date(snapshotAt));
+}
 
 // bird_design.md §7.2.1 の classify() をそのまま実装
 function classify(row: MuniAmountApiRow | undefined, budget: number, statLabel: string): MuniTier {
@@ -82,6 +107,11 @@ export const SearchResult: React.FC = () => {
     const { data } = useSWR<MuniAmountApiRow[]>(
         `${API_BASE_URL}/muni/amounts?type=${encodeURIComponent(appliedType)}&priceCategory=${encodeURIComponent(appliedPriceCategory)}`,
         fetcher
+    );
+
+    const { data: snapshotMeta } = useSWR<SnapshotMetaApiResponse | null>(
+        `${API_BASE_URL}/muni/snapshot-meta`,
+        snapshotMetaFetcher
     );
 
     const amountsByMuniCode = useMemo(() => {
@@ -190,6 +220,31 @@ export const SearchResult: React.FC = () => {
             <button type="button" onClick={() => router.push('/enter-check')}>
                 予算確認画面に戻る
             </button>
+            <footer aria-labelledby="footer-heading">
+                <h2 id="footer-heading">出典・利用規約</h2>
+                {snapshotMeta && (
+                    <p>
+                        {formatSnapshotAt(snapshotMeta.snapshotAt)}時点（{snapshotMeta.period}）
+                    </p>
+                )}
+                <p>
+                    出典：
+                    <a href="https://www.reinfolib.mlit.go.jp/" target="_blank" rel="noreferrer">
+                        国土交通省 不動産情報ライブラリ
+                    </a>
+                </p>
+                <p>
+                    「不動産取引価格情報／成約価格情報」（国土交通省）をもとに bird が作成。
+                    表示する平均価格・中央値は bird が独自に算出した参考情報です。
+                </p>
+                <p>
+                    このサービスは、国土交通省の不動産情報ライブラリのAPI機能を使用していますが、
+                    提供情報の最新性、正確性、完全性等が保証されたものではありません。
+                    本サービスの内容は重要事項説明等に代わるものではなく、参考情報としてご利用ください。
+                    本アプリは bird が開発・運営し、表示内容について責任を負いますが、
+                    実際の不動産取引に関する最終的なご判断は利用者ご自身の責任で行ってください。
+                </p>
+            </footer>
         </main>
     );
 };
